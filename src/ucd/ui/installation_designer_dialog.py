@@ -1049,7 +1049,14 @@ class InstallationCanvas(QGraphicsView):
         elif kind == THERMAL_INSTALL_DUCT_BANK:
             bank_w = min(max(g.duct_bank_width_m, 0.10), width)
             bank_h = min(max(g.duct_bank_height_m, 0.10), max(0.10, bottom - bedding))
-            bank_top = bottom - bedding - bank_h
+            active_slots = [item for item in section.duct_slots if item.active]
+            active_cables = [item for item in section.physical_cables if item.active]
+            depth_source = active_slots if active_slots else active_cables
+            mean_depth = (
+                sum(float(item.depth_m) for item in depth_source) / len(depth_source)
+                if depth_source else max(0.10, bottom - bedding - bank_h / 2.0)
+            )
+            bank_top = max(0.0, min(bottom - bank_h, mean_depth - bank_h / 2.0))
             if bank_top > 0.0:
                 self._add_polygon_m(
                     self._layer_vertices(section, 0.0, bank_top),
@@ -1082,12 +1089,23 @@ class InstallationCanvas(QGraphicsView):
             ih = max(0.20, g.trough_inner_height_m)
             outer_w = min(width, iw + 2 * wall)
             outer_h = min(bottom, ih + 2 * wall)
+            active_cables = [item for item in section.physical_cables if item.active]
+            cable_radius = max(self._diameter_m / 2.0, 0.001)
+            trough_bottom = min(
+                bottom,
+                max((float(item.depth_m) for item in active_cables), default=bottom - wall)
+                + cable_radius + wall,
+            )
             x0 = g.center_x_m - outer_w / 2.0
-            y0 = bottom - outer_h
+            y0 = max(0.0, trough_bottom - outer_h)
             self._add_rect_m(x0, y0, outer_w, outer_h, self._material_fill(g.trough_material_id, QColor("#a8b3ba")), QPen(QColor("#394b55"), 3.0), 0)
             self._add_rect_m(x0 + wall, y0 + wall, max(0.01, outer_w - 2 * wall), max(0.01, outer_h - 2 * wall), QColor("#e9e0d2"), QPen(QColor("#6b747a"), 1.0), 1)
         elif kind == THERMAL_INSTALL_HDD:
-            centre_depth = min((item.depth_m for item in section.physical_cables if item.active), default=bottom * 0.70)
+            active_cables = [item for item in section.physical_cables if item.active]
+            centre_depth = (
+                sum(float(item.depth_m) for item in active_cables) / len(active_cables)
+                if active_cables else bottom * 0.70
+            )
             diameter = max(g.hdd_bore_diameter_m, 0.10)
             x, y = self._scene_xy(g.center_x_m, centre_depth)
             ellipse = self.scene_obj.addEllipse(
@@ -1231,6 +1249,43 @@ class InstallationCanvas(QGraphicsView):
                 g.center_x_m + g.cover_slab_width_m / 2.0 + 0.08,
                 0.0, g.cover_slab_depth_m,
             )
+
+    def _draw_installation_integrity_overlay(self, section: InstallationCrossSectionData) -> None:
+        """Show incomplete installation geometry directly on the engineering canvas."""
+        kind = str(section.installation_type).upper()
+        cables = [item for item in section.physical_cables if item.active]
+        cable_radius = max(self._diameter_m / 2.0, 0.0005)
+        g = section.channel_geometry
+        messages: list[str] = []
+        if kind == THERMAL_INSTALL_DUCT_BANK:
+            slots = {item.slot_id: item for item in section.duct_slots if item.active}
+            if cables and not slots:
+                messages.append("DUCT GEOMETRİSİ EKSİK: aktif kablolar için duct slotları tanımlı değil.")
+            elif any(not str(item.duct_slot_id or "") or str(item.duct_slot_id) not in slots for item in cables):
+                messages.append("DUCT ATAMASI EKSİK: bazı aktif kablolar bir duct slotuna bağlı değil.")
+        elif kind == THERMAL_INSTALL_HDD and cables:
+            centre_depth = sum(float(item.depth_m) for item in cables) / len(cables)
+            radius = max(0.0, float(g.hdd_bore_diameter_m)) / 2.0
+            if any((((float(item.x_m) - float(g.center_x_m)) ** 2 + (float(item.depth_m) - centre_depth) ** 2) ** 0.5 + cable_radius) > radius + 1e-9 for item in cables):
+                messages.append("HDD ZARFI YETERSİZ: kablo grubu bore çapının dışında kalıyor.")
+        elif kind == THERMAL_INSTALL_CONCRETE_TROUGH and cables:
+            wall = max(0.0, float(g.trough_wall_thickness_m))
+            iw = max(0.0, float(g.trough_inner_width_m))
+            ih = max(0.0, float(g.trough_inner_height_m))
+            outer_h = ih + 2.0 * wall
+            trough_bottom = min(float(g.trench_depth_m), max(float(item.depth_m) for item in cables) + cable_radius + wall)
+            trough_top = max(0.0, trough_bottom - outer_h)
+            inner_top, inner_bottom = trough_top + wall, trough_bottom - wall
+            left, right = float(g.center_x_m) - iw / 2.0, float(g.center_x_m) + iw / 2.0
+            if any(not (float(item.x_m) - cable_radius >= left - 1e-9 and float(item.x_m) + cable_radius <= right + 1e-9 and float(item.depth_m) - cable_radius >= inner_top - 1e-9 and float(item.depth_m) + cable_radius <= inner_bottom + 1e-9) for item in cables):
+                messages.append("BETON KANAL ZARFI YETERSİZ: kablolardan en az biri iç boşluk yerine duvar bölgesine taşıyor.")
+        if not messages:
+            return
+        label = self.scene_obj.addText("\n".join(messages), QFont("Segoe UI", 9, QFont.Bold))
+        label.setDefaultTextColor(QColor("#a72d2d"))
+        label.setFlag(QGraphicsItem.ItemIgnoresTransformations, True)
+        label.setPos(18, self.surface_y + 28)
+        label.setZValue(80)
 
     def _draw_electrical_dimensions(self, section: InstallationCrossSectionData) -> None:
         if self._dimension_mode not in {"ELECTRICAL", "ALL"}:
@@ -1469,6 +1524,7 @@ class InstallationCanvas(QGraphicsView):
 
         self._draw_channel_geometry(section)
         self._draw_layer_legend(section)
+        self._draw_installation_integrity_overlay(section)
 
         # User material regions overlay the parametric soil/backfill layers but
         # remain below physical duct, cable and protection objects.
@@ -1664,6 +1720,7 @@ class InstallationDesignerDialog(QDialog):
         self._fit_on_next_draw = True
         self._redraw_pending = False
         self._layout_regeneration_pending = False
+        self._installation_type_regeneration_pending = False
         self._settings = QSettings("DiTuS", "KabloAnalizor")
         self._layer_colors = self._load_layer_colors()
         self.setWindowTitle("DiTuS — Kablo-Kanal Düzeni v0.16.9.4.38")
@@ -3419,7 +3476,9 @@ class InstallationDesignerDialog(QDialog):
             "circuit_count": max(1, len(circuit_ids)),
             "parallel_count": max(1, parallel_count),
             "phase_orders": ", ".join(item.phase_order for item in active_circuits) or "ABC",
-            "loads": ", ".join(f"{float(item.load_current_a):g}" for item in active_circuits) or "0",
+            # 17 significant digits guarantee a Python float round-trip; UI text must
+            # never quantize an electrical operating point merely by being displayed.
+            "loads": ", ".join(format(float(item.load_current_a), ".17g") for item in active_circuits) or "0",
             "depth": depth_value,
             "phase_spacing": phase_spacing_value,
             "parallel_spacing": sum(parallel_distances) / len(parallel_distances) if parallel_distances else self.preset_parallel_spacing.value(),
@@ -3743,6 +3802,11 @@ class InstallationDesignerDialog(QDialog):
         else:
             section.installation_type = new_installation_type
         if installation_changed and hasattr(self, "preset_arrangement"):
+            # A kurulum-tipi değişikliği geometri olayıdır. Bir sonraki otomatik
+            # preset üretiminde eski kanal zarfını taşımak yerine yeni kurulumun
+            # kendi parametric defaults'u kullanılır; elektriksel devre kimliği
+            # ve tam hassasiyetli akımlar ayrıca korunur.
+            self._installation_type_regeneration_pending = True
             current_formation = _formation_code(section.arrangement_label)
             target_arrangement = "CUSTOM" if current_formation in {"DUCT_BANK", "HDD"} else current_formation
             self.preset_arrangement.blockSignals(True)
@@ -3920,17 +3984,25 @@ class InstallationDesignerDialog(QDialog):
             else:
                 QMessageBox.information(self, "Kablo yerleşimi", message)
             return
-        phase_orders = self._split_values(self.preset_phase_orders.text())
-        try:
-            loads = [float(v.replace(",", ".")) for v in self._split_values(self.preset_loads.text())]
-        except ValueError:
-            message = "Devre akımları sayısal ve virgülle ayrılmış olmalıdır."
-            if automatic and hasattr(self, "preset_status_label"):
-                self.preset_status_label.setText(f"<b style='color:#a72d2d'>{message}</b>")
-            else:
+        preserved_circuits = deepcopy(section.circuits)
+        preserved_physical = {item.physical_cable_id: deepcopy(item) for item in section.physical_cables}
+        if automatic:
+            # Automatic geometry regeneration may NEVER round-trip electrical
+            # currents through a formatted text box. Use the model values at
+            # full precision and preserve phase order/identity.
+            active_circuits = [item for item in section.circuits if item.active]
+            phase_orders = [str(item.phase_order) for item in active_circuits]
+            loads = [float(item.load_current_a) for item in active_circuits]
+        else:
+            phase_orders = self._split_values(self.preset_phase_orders.text())
+            try:
+                loads = [float(v.replace(",", ".")) for v in self._split_values(self.preset_loads.text())]
+            except ValueError:
+                message = "Devre akımları sayısal ve virgülle ayrılmış olmalıdır."
                 QMessageBox.warning(self, "Hazır yerleşim", message)
-            return
-        preserved_geometry = deepcopy(section.channel_geometry)
+                return
+        type_change = bool(self._installation_type_regeneration_pending)
+        preserved_geometry = None if type_change else deepcopy(section.channel_geometry)
         preserved_regions = deepcopy(section.material_regions)
         preserved_heat_sources = deepcopy(section.external_heat_sources)
         try:
@@ -3969,12 +4041,39 @@ class InstallationDesignerDialog(QDialog):
                 cable_outer_diameter_m=self.project.cable.overall_diameter_mm / 1000.0,
             )
             layout_warnings = result.warning_messages
-        generated.channel_geometry = preserved_geometry
+        if preserved_geometry is not None:
+            generated.channel_geometry = preserved_geometry
+            update_channel_geometry_for_installation(
+                generated, generated.installation_type, reset_dimensions=False
+            )
+        else:
+            # generate_standard_cross_section already created geometry defaults
+            # for the newly selected installation type. Keep that coherent
+            # envelope instead of carrying the previous installation's trench.
+            update_channel_geometry_for_installation(
+                generated, generated.installation_type, reset_dimensions=False
+            )
         generated.material_regions = preserved_regions
         generated.external_heat_sources = preserved_heat_sources
-        update_channel_geometry_for_installation(
-            generated, generated.installation_type, reset_dimensions=False
-        )
+
+        if automatic:
+            prior_by_id = {item.circuit_id: item for item in preserved_circuits}
+            for circuit in generated.circuits:
+                prior = prior_by_id.get(circuit.circuit_id)
+                if prior is not None:
+                    circuit.name = prior.name
+                    circuit.phase_order = prior.phase_order
+                    circuit.load_current_a = prior.load_current_a
+                    circuit.load_factor = prior.load_factor
+                    circuit.active = prior.active
+                    circuit.cable_snapshot_id = prior.cable_snapshot_id
+                    circuit.notes = prior.notes
+            for cable in generated.physical_cables:
+                prior = preserved_physical.get(cable.physical_cable_id)
+                if prior is not None:
+                    cable.current_override_a = prior.current_override_a
+                    cable.current_angle_override_deg = prior.current_angle_override_deg
+                    cable.active = prior.active
         if str(generated.installation_type).upper() == THERMAL_INSTALL_DIRECT_BURIED:
             try:
                 synchronise_direct_buried_geometry(
@@ -4023,6 +4122,7 @@ class InstallationDesignerDialog(QDialog):
             )
         index = self.design.cross_sections.index(section)
         self.design.cross_sections[index] = generated
+        self._installation_type_regeneration_pending = False
         self._fit_on_next_draw = True
         if hasattr(self, "preset_status_label"):
             warning_text = " ".join(layout_warnings)
@@ -4341,6 +4441,67 @@ class InstallationDesignerDialog(QDialog):
                 target.pop(row)
         self._refresh_all()
 
+    def _installation_visual_integrity_findings(self, section: InstallationCrossSectionData) -> list[tuple[str, str]]:
+        """UI/data-integrity checks for installation-specific containment.
+
+        These checks do not alter any physics solver. They prevent an incomplete
+        physical section from being presented as a coherent engineering drawing.
+        """
+        findings: list[tuple[str, str]] = []
+        kind = str(section.installation_type).upper()
+        active_cables = [item for item in section.physical_cables if item.active]
+        cable_radius = max(float(self.project.cable.overall_diameter_mm) / 2000.0, 0.0005)
+        g = section.channel_geometry
+
+        if kind == THERMAL_INSTALL_DUCT_BANK:
+            slots = {item.slot_id: item for item in section.duct_slots if item.active}
+            if active_cables and not slots:
+                findings.append(("ERROR", "DUCT_LAYOUT_MISSING: Aktif kablolar var ancak aktif duct slot geometrisi yok. Hazır yerleşimi uygulayın veya duct slotlarını tanımlayın."))
+            for cable in active_cables:
+                slot_id = str(cable.duct_slot_id or "")
+                slot = slots.get(slot_id)
+                if slot is None:
+                    findings.append(("ERROR", f"DUCT_ASSIGNMENT_MISSING: {cable.physical_cable_id} aktif bir duct slotuna bağlı değil."))
+                    continue
+                centre_error = ((float(cable.x_m) - float(slot.x_m)) ** 2 + (float(cable.depth_m) - float(slot.depth_m)) ** 2) ** 0.5
+                if centre_error > 1e-5:
+                    findings.append(("ERROR", f"DUCT_CABLE_COORDINATE_MISMATCH: {cable.physical_cable_id} ile {slot.slot_id} merkezleri {centre_error:.6f} m farklı."))
+                if cable_radius >= float(slot.inner_diameter_m) / 2.0:
+                    findings.append(("ERROR", f"CABLE_TOO_LARGE_FOR_DUCT: {cable.physical_cable_id} dış çapı {slot.slot_id} iç çapına sığmıyor."))
+
+        elif kind == THERMAL_INSTALL_CONCRETE_TROUGH and active_cables:
+            wall = max(0.0, float(g.trough_wall_thickness_m))
+            iw = max(0.0, float(g.trough_inner_width_m))
+            ih = max(0.0, float(g.trough_inner_height_m))
+            outer_h = ih + 2.0 * wall
+            trough_bottom = min(
+                float(g.trench_depth_m),
+                max(float(item.depth_m) for item in active_cables) + cable_radius + wall,
+            )
+            trough_top = max(0.0, trough_bottom - outer_h)
+            inner_top = trough_top + wall
+            inner_bottom = trough_bottom - wall
+            left = float(g.center_x_m) - iw / 2.0
+            right = float(g.center_x_m) + iw / 2.0
+            for cable in active_cables:
+                if not (
+                    float(cable.x_m) - cable_radius >= left - 1e-9
+                    and float(cable.x_m) + cable_radius <= right + 1e-9
+                    and float(cable.depth_m) - cable_radius >= inner_top - 1e-9
+                    and float(cable.depth_m) + cable_radius <= inner_bottom + 1e-9
+                ):
+                    findings.append(("ERROR", f"CABLE_INTERSECTS_TROUGH_WALL: {cable.physical_cable_id} beton kanalın iç boşluğunda değil."))
+
+        elif kind == THERMAL_INSTALL_HDD and active_cables:
+            centre_x = float(g.center_x_m)
+            centre_depth = sum(float(item.depth_m) for item in active_cables) / len(active_cables)
+            bore_radius = max(0.0, float(g.hdd_bore_diameter_m)) / 2.0
+            for cable in active_cables:
+                radial = ((float(cable.x_m) - centre_x) ** 2 + (float(cable.depth_m) - centre_depth) ** 2) ** 0.5
+                if radial + cable_radius > bore_radius + 1e-9:
+                    findings.append(("ERROR", f"CABLE_OUTSIDE_HDD_BORE: {cable.physical_cable_id} HDD zarfının dışında; bore çapı/yerleşim yeniden tanımlanmalı."))
+        return findings
+
     def _refresh_validation(self) -> None:
         issues = validate_installation_design(
             self.design,
@@ -4349,6 +4510,9 @@ class InstallationDesignerDialog(QDialog):
         errors = [item for item in issues if item.severity == "ERROR"]
         warnings = [item for item in issues if item.severity == "WARNING"]
         section = self._section()
+        visual_findings = self._installation_visual_integrity_findings(section) if section is not None else []
+        visual_errors = [message for severity, message in visual_findings if severity == "ERROR"]
+        visual_warnings = [message for severity, message in visual_findings if severity == "WARNING"]
         resolved_count = 0
         max_current = 0.0
         if section is not None:
@@ -4380,18 +4544,21 @@ class InstallationDesignerDialog(QDialog):
                     material_issues.extend(validate_material_for_final_design(material))
         details = "<br>".join(
             [f"• {item.message}" for item in issues[:4]]
+            + [f"• {message}" for message in (visual_errors + visual_warnings)[:4]]
             + [f"• {item.message}" for item in material_issues[:2]]
         )
+        total_errors = len(errors) + len(visual_errors)
+        total_warnings = len(warnings) + len(visual_warnings)
         self.validation_label.setText(
-            f"<b>Doğrulama:</b> {len(errors)} hata / {len(warnings)} uyarı · "
+            f"<b>Doğrulama:</b> {total_errors} hata / {total_warnings} uyarı · "
             f"{resolved_count} etkin fiziksel kablo · en yüksek atanmış akım {max_current:.2f} A · "
             f"solver_coupling_mode={self.design.solver_coupling_mode}"
             + (f"<br>{details}" if details else "")
             + "<br><i>v0.16.9.4.14: TREFOIL faz merkezleri gerçek kablo dış çapından otomatik üretilir; tablo koordinat yuvarlaması temas demetini çakışmaya çeviremez. Kaydedilen fiziksel x-y ve kanal katmanları üretim hesaplarına bağlanır; Geometri kaydı mevcut sonuçları geçersiz kılar ve yeniden hesap ister.</i>"
         )
         self.validation_label.setStyleSheet(
-            "color:#a72d2d; padding:5px;" if errors else
-            "color:#8a5a00; padding:5px;" if warnings else
+            "color:#a72d2d; padding:5px;" if total_errors else
+            "color:#8a5a00; padding:5px;" if total_warnings else
             "color:#24613b; padding:5px;"
         )
 

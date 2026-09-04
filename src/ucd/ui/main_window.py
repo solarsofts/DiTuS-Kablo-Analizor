@@ -119,6 +119,7 @@ from ucd.calculations import (
     register_physical_calculation,
     run_bonding_production,
     run_application_thermal_preprocessor,
+    OperatingScenarioInputError,
 )
 from ucd.calculations.iec60287 import SUITABILITY_SUITABLE
 from ucd.calculations.result_status import is_suitable
@@ -840,6 +841,7 @@ class MainWindow(QMainWindow):
             f"Sonraki işlem: {stage.next_action}"
         )
         if switch_workspace:
+            self.stage_host.set_standalone_mode(False)
             if stage.stage_id == "cable":
                 self.show_project_cable_selection()
             elif stage.stage_id == "installation":
@@ -959,16 +961,23 @@ class MainWindow(QMainWindow):
             return DENSITY_COMPACT
         return DENSITY_NORMAL
 
-    def _show_workspace_widget(self, widget: QWidget, title: str | None = None) -> None:
+    def _show_workspace_widget(
+        self, widget: QWidget, title: str | None = None, *, workflow_frame: bool = True
+    ) -> None:
         index = self.workspace_tabs.indexOf(widget)
         if index < 0:
             return
         self.workspace_tabs.setCurrentIndex(index)
         label = title or self.workspace_tabs.tabText(index)
         self.module_dialog.setWindowTitle(f"DiTuS — {label}")
-        # Konak çerçevesi aktif aşamayı gösterir; aşamasız görünümlerde
-        # yalnız başlık taşır ve gezinme düğmeleri kapanır.
-        self._sync_stage_host(label)
+        # Proje ağacından açılan nesne editörleri sihirbaz değildir. Aynı
+        # çalışma widget'ını kullanırlar fakat StageHost üst/alt akış şeritleri
+        # gizlenir. Tasarım Akışı üzerinden açılan aşamalar çerçeveyi korur.
+        self.stage_host.set_standalone_mode(not workflow_frame)
+        if workflow_frame:
+            self._sync_stage_host(label)
+        else:
+            self.stage_host.set_stage(None, self.workflow_evaluation, label)
         # Bonding tam-ekran modu başka bir modüle taşınmamalıdır.
         if widget is not self.bonding_table_widget and self.bonding_focus_mode:
             self.bonding_focus_mode = False
@@ -2149,8 +2158,10 @@ class MainWindow(QMainWindow):
         self.route_table.setSelectionMode(QAbstractItemView.SingleSelection)
         self.route_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.route_table.itemDoubleClicked.connect(lambda *_: self._edit_route_section())
-        layout.addWidget(self.route_table, 1)
 
+        # Komutlar tablonun ALTINDA kaybolmamalıdır. Özellikle StageHost veya
+        # küçük monitörlerde kullanıcı önce Ekle/Düzenle/Sil/Kabul Et satırını
+        # görür; tablo kalan yüksekliği kullanır.
         buttons = QHBoxLayout()
         add_btn = QPushButton("Bölüm Ekle")
         edit_btn = QPushButton("Seçili Bölümü Düzenle")
@@ -2166,6 +2177,7 @@ class MainWindow(QMainWindow):
         buttons.addStretch(1)
         buttons.addWidget(accept_btn)
         layout.addLayout(buttons)
+        layout.addWidget(self.route_table, 1)
         return container
 
     def _build_thermal_route_widget(self) -> QWidget:
@@ -3908,7 +3920,9 @@ class MainWindow(QMainWindow):
         elif kind == "route" and data is not None:
             index = int(data)
             self._show_route_properties(index)
-            self._activate_workflow_stage("route")
+            self._show_workspace_widget(
+                self.route_table_widget, "Güzergâh Bölümleri", workflow_frame=False
+            )
             self.route_table.selectRow(index)
         elif kind in {"installation", "installation_section"}:
             section_id = str(data) if data else ""
@@ -5423,6 +5437,46 @@ class MainWindow(QMainWindow):
         self.thermal_result_table.resizeColumnsToContents()
         self.thermal_result_table.horizontalHeader().setStretchLastSection(True)
 
+    def _bonding_input_error_message(self, exc: Exception) -> str:
+        """Translate scenario consistency failures into actionable project guidance."""
+        raw = str(exc).strip()
+        if "kesitler arasında devre akımı değişiyor" not in raw:
+            return raw
+
+        circuit_id = raw.split(":", 1)[0].strip()
+        rows: list[tuple[str, str, float]] = []
+        for section in self.project.installation_design.cross_sections:
+            for circuit in section.circuits:
+                if circuit.active and str(circuit.circuit_id) == circuit_id:
+                    rows.append((section.cross_section_id, section.name, float(circuit.load_current_a)))
+        if len(rows) < 2:
+            return raw
+        reference = rows[0][2]
+        deltas = [abs(value - reference) for _sid, _name, value in rows[1:]]
+        max_delta = max(deltas, default=0.0)
+        scale = max(abs(reference), max((abs(value) for _sid, _name, value in rows), default=0.0), 1.0)
+        relative = max_delta / scale
+        detail = "\n".join(
+            f"• {sid} — {name}: {value:.12f} A" for sid, name, value in rows
+        )
+        if relative <= 1e-5:
+            reason = (
+                "Fark çok küçük ve gösterim/yuvarlama kaynaklı bir veri round-trip tutarsızlığına benziyor. "
+                "Kablo-Kanal geometrisi düzenlenirken devre akımı değiştirilmemelidir."
+            )
+        else:
+            reason = (
+                "Aynı sürekli elektriksel devre farklı fiziksel kesitlerde farklı RMS akımla tanımlanmış. "
+                "Mevcut bonding senaryosu bunu tek sürekli devre olarak çözemiyor."
+            )
+        return (
+            f"Devre akımı tutarsızlığı — {circuit_id}\n\n{detail}\n\n"
+            f"Maksimum fark: {max_delta:.12f} A (%{relative * 100.0:.8f})\n\n"
+            f"Neden: {reason}\n\n"
+            "Çözüm: aynı sürekli devrenin kesitlerindeki çalışma akımını eşitleyin; gerçek bir tap/dallanma varsa "
+            "onu ayrı elektriksel devre/topoloji olarak modelleyin."
+        )
+
     def run_bonding_solver(self) -> None:
         if not self._confirm_engine_precheck("bonding"):
             return
@@ -5433,10 +5487,11 @@ class MainWindow(QMainWindow):
             production_electrothermal = run.electrothermal
             production_bonding = run.production
             result = run.legacy_diagnostic
-        except (BondingInputError, ThermalRouteInputError) as exc:
-            self._fail_engine_run("bonding", str(exc))
-            QMessageBox.critical(self, "Bonding girdi hatası", str(exc))
-            self.warning_list.setPlainText(str(exc))
+        except (BondingInputError, ThermalRouteInputError, OperatingScenarioInputError) as exc:
+            message = self._bonding_input_error_message(exc)
+            self._fail_engine_run("bonding", message)
+            QMessageBox.critical(self, "Bonding girdi hatası", message)
+            self.warning_list.setPlainText(message)
             return
         except Exception as exc:
             self._fail_engine_run("bonding", f"Beklenmeyen hata: {exc}")

@@ -153,6 +153,18 @@ class StageHostFrame(QWidget):
         nav_row.addWidget(self.exit_button)
         footer_layout.addLayout(nav_row)
         layout.addWidget(self.footer)
+        self._standalone_mode = False
+
+    # ------------------------------------------------------------------
+    def set_standalone_mode(self, enabled: bool) -> None:
+        """Hide workflow chrome when a project-tree object editor is opened directly.
+
+        The workspace widget remains the same; only the wizard-like stage header/footer
+        are removed so object editors keep their own commands and usable viewport.
+        """
+        self._standalone_mode = bool(enabled)
+        self.header.setVisible(not self._standalone_mode)
+        self.footer.setVisible(not self._standalone_mode)
 
     # ------------------------------------------------------------------
     def set_body(self, widget: QWidget) -> None:
