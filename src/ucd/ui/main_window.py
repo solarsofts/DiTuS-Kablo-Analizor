@@ -122,6 +122,7 @@ from ucd.calculations import (
     OperatingScenarioInputError,
 )
 from ucd.calculations.iec60287 import SUITABILITY_SUITABLE
+from ucd.calculations.production_bonding import lambda1_criterion_warning
 from ucd.calculations.result_status import is_suitable
 from ucd.calculations.thermal_method_validation import (
     BASIS_METHOD_DISAGREEMENT,
@@ -5555,8 +5556,11 @@ class MainWindow(QMainWindow):
             warnings.insert(0, f"Standing voltage {result.max_standing_voltage_v:.1f} V, proje limiti {result.voltage_limit_v:.1f} V üzerinde.")
         if not result.lead_length_ok:
             warnings.insert(0, "Bir veya daha fazla link-box bonding lead uzunluğu proje kriterini aşıyor.")
-        if result.lambda1 > self.project.bonding.maximum_lambda1:
-            warnings.insert(0, f"λ1={result.lambda1:.6f}, proje kriteri {self.project.bonding.maximum_lambda1:.6f} üzerinde.")
+        lambda1_warning = lambda1_criterion_warning(
+            result.lambda1, production_bonding, self.project.bonding.maximum_lambda1
+        )
+        if lambda1_warning is not None:
+            warnings.insert(0, lambda1_warning)
         if result.primitive_network_result is not None:
             primitive = result.primitive_network_result
             if not primitive.methods_agree:

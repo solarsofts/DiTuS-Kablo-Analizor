@@ -8,6 +8,7 @@ N-core/N-sheath network used by the electro-thermal production calculation.
 """
 
 from dataclasses import dataclass
+from math import isfinite
 from typing import Iterable
 
 from ucd.calculations.production_electrothermal import (
@@ -70,6 +71,39 @@ class ProductionBondingStudyResult:
                 f"converged={item.converged}; methods_agree={item.methods_agree}"
             )
         return lines
+
+
+def governing_lambda1(
+    legacy_lambda1: float | None,
+    production: ProductionBondingStudyResult | None,
+) -> tuple[float, str] | None:
+    """Largest finite λ1 of production scenarios and the legacy diagnostic view.
+
+    Production scenarios come first so that an equal legacy value does not
+    take over the reported source.
+    """
+    candidates: list[tuple[float, str]] = []
+    if production is not None:
+        for item in production.scenarios:
+            if item.lambda1 is not None and isfinite(item.lambda1):
+                candidates.append((float(item.lambda1), f"üretim senaryosu {item.scenario_id}"))
+    if legacy_lambda1 is not None and isfinite(legacy_lambda1):
+        candidates.append((float(legacy_lambda1), "legacy tanısal üç-loop"))
+    if not candidates:
+        return None
+    return max(candidates, key=lambda candidate: candidate[0])
+
+
+def lambda1_criterion_warning(
+    legacy_lambda1: float | None,
+    production: ProductionBondingStudyResult | None,
+    maximum_lambda1: float,
+) -> str | None:
+    governing = governing_lambda1(legacy_lambda1, production)
+    if governing is None or governing[0] <= float(maximum_lambda1):
+        return None
+    value, source = governing
+    return f"λ1={value:.6f} ({source}), proje kriteri {float(maximum_lambda1):.6f} üzerinde."
 
 
 def project_production_bonding_study(

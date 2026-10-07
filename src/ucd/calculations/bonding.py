@@ -940,11 +940,11 @@ def solve_bonding(
                 current = 0j
                 loss = 0.0
             else:
+                # Balanced solid bonding: circulating currents close through the other
+                # phase sheaths, not the termination earth electrodes (IEC 60287-1-1 lambda1').
                 r_metal = r_op * total_length / 1000.0
                 x_metal = x_per_km * total_length / 1000.0
-                terminal_nodes = [n for n in bonding.nodes if n.node_type.upper() == "TERMINATION"]
-                earth_r = sum(max(0.0, n.earth_resistance_ohm) for n in terminal_nodes[:2])
-                impedance = complex(r_metal + earth_r, x_metal)
+                impedance = complex(r_metal, x_metal)
                 current = residual / impedance
                 loss = abs(current) ** 2 * r_metal
             total_sheath_loss += loss
@@ -984,6 +984,11 @@ def solve_bonding(
         "Standing-voltage profili production primitive ağda çözülmüş sheath-to-earth düğüm gerilimlerinden; legacy modlarda ise cross-bond yolu boyunca kümülatif kompleks fazör toplamından üretilir.",
     ]
     notes.extend(lead_warnings)
+    if scheme == BONDING_SOLID_BOTH_END:
+        notes.append(
+            "SOLID_BOTH_END legacy çevrimi: dengeli sistemde dolaşım akımı diğer faz kılıfları üzerinden kapanır; "
+            "terminasyon topraklama direnci faz çevrim empedansına eklenmez (Z = Rs·L + jX·L, IEC 60287-1-1 λ1′)."
+        )
     if cable.sheath_dc_resistance_20_ohm_km <= 0:
         notes.append("Sheath R20 metal malzemesi ve toplam metalik kesitten türetildi; üretici değeri tercih edilmelidir.")
     if scheme == BONDING_CROSS:
