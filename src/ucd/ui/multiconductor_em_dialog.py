@@ -40,6 +40,7 @@ from ucd.calculations.multiconductor_em import (
     solve_multiconductor_em,
 )
 from ucd.models.project import ProjectData
+from .background_task import run_blocking_task
 from .window_layout import fit_window, DENSITY_WIDE
 
 
@@ -231,7 +232,9 @@ class MulticonductorEMDialog(QDialog):
 
     def run_solver(self) -> None:
         try:
-            self.result = solve_multiconductor_em(
+            self.result = run_blocking_task(
+                self, "N-iletken EM", "N-iletken EM gölge çözümü çalışıyor…",
+                solve_multiconductor_em,
                 self.project,
                 cross_section_id=str(self.section_combo.currentData() or ""),
                 sheath_mode=str(self.sheath_combo.currentData() or SHEATH_SOLID_BOTH_END),
@@ -246,7 +249,10 @@ class MulticonductorEMDialog(QDialog):
 
     def run_network_solver(self) -> None:
         try:
-            self.network_result = solve_multiconductor_bonding_network(self.project)
+            self.network_result = run_blocking_task(
+                self, "N-iletken bonding ağı", "N-iletken bonding ağı gölge çözümü çalışıyor…",
+                solve_multiconductor_bonding_network, self.project,
+            )
         except MulticonductorBondingInputError as exc:
             QMessageBox.critical(self, "N-iletken bonding ağı girdi hatası", str(exc))
             return
@@ -257,7 +263,10 @@ class MulticonductorEMDialog(QDialog):
 
     def run_global_solver(self) -> None:
         try:
-            self.global_result = solve_global_multiconductor_network(self.project)
+            self.global_result = run_blocking_task(
+                self, "Global N-iletken ağ", "Global core + bonding ağı gölge çözümü çalışıyor…",
+                solve_global_multiconductor_network, self.project,
+            )
         except MulticonductorGlobalInputError as exc:
             QMessageBox.critical(self, "Global N-iletken ağ girdi hatası", str(exc))
             return

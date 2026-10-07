@@ -28,6 +28,7 @@ from ucd.calculations.catalog_comparison import (
     write_catalog_comparison_report,
 )
 from ucd.models.project import ProjectData
+from .background_task import run_blocking_task
 from .window_layout import fit_window, DENSITY_WIDE
 
 
@@ -42,7 +43,10 @@ class CatalogComparisonDialog(QDialog):
         super().__init__(parent)
         self.project = project
         self.candidate_ids = tuple(candidate_ids or ())
-        self.result: CatalogComparisonResult = compare_catalog_candidates(
+        # Bu pencere henüz görünür değil; meşgul göstergesi çağıran pencereye bağlanır.
+        self.result: CatalogComparisonResult = run_blocking_task(
+            parent, "Katalog karşılaştırma", "Katalog adayları teknik olarak karşılaştırılıyor…",
+            compare_catalog_candidates,
             project,
             self.candidate_ids or None,
             maximum_parallel_cables=2,

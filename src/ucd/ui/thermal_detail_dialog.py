@@ -34,6 +34,7 @@ from ucd.calculations import (
 )
 from ucd.models.project import ProjectData
 from ucd.ui.graphics_views import SimpleDiagramView, TransientThermalView
+from .background_task import run_blocking_task
 from .window_layout import fit_window, DENSITY_WIDE
 
 
@@ -371,7 +372,9 @@ class ThermalAnalysisDialog(QDialog):
     def _calculate_alternatives(self) -> None:
         self.alternative_detail.setPlainText("Alternatifler hesaplanıyor…")
         try:
-            self.alternatives = evaluate_thermal_design_alternatives(
+            self.alternatives = run_blocking_task(
+                self, "Termal tasarım alternatifleri", "Alternatif bölge tasarımları 2D olarak çözülüyor…",
+                evaluate_thermal_design_alternatives,
                 self.project,
                 self.nodal_study,
                 self.scenario_id,

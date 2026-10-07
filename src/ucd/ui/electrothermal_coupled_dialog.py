@@ -30,6 +30,7 @@ from ucd.calculations.electrothermal_coupled import (
     solve_electrothermal_coupled,
 )
 from ucd.models.project import ProjectData
+from .background_task import run_blocking_task
 from .window_layout import fit_window, DENSITY_WIDE
 
 
@@ -161,7 +162,10 @@ class ElectroThermalCoupledDialog(QDialog):
 
     def run_solver(self) -> None:
         try:
-            self.result = solve_electrothermal_coupled(
+            self.result = run_blocking_task(
+                self, "Elektro-termal kapalı çevrim",
+                "Elektro-termal kapalı çevrim gölge çözümü çalışıyor…",
+                solve_electrothermal_coupled,
                 self.project,
                 mesh_scale=float(self.mesh_scale.value()),
                 maximum_iterations=int(self.max_iterations.value()),
@@ -180,7 +184,10 @@ class ElectroThermalCoupledDialog(QDialog):
 
     def run_ampacity(self) -> None:
         try:
-            self.ampacity_result = solve_electrothermal_ampacity(
+            self.ampacity_result = run_blocking_task(
+                self, "Elektro-termal ampacity",
+                "Kapalı çevrim ampacity gölge çözümü çalışıyor…",
+                solve_electrothermal_ampacity,
                 self.project,
                 mesh_scale=float(self.mesh_scale.value()),
                 maximum_closed_loop_iterations=int(self.max_iterations.value()),

@@ -24,6 +24,7 @@ from ucd.calculations.shadow_validation import (
     run_shadow_validation,
 )
 from ucd.models.project import ProjectData
+from .background_task import run_blocking_task
 from .window_layout import fit_window, DENSITY_WIDE
 
 
@@ -126,7 +127,9 @@ class ShadowValidationDialog(QDialog):
 
     def run_validation(self) -> None:
         try:
-            self.result = run_shadow_validation(
+            self.result = run_blocking_task(
+                self, "Shadow doğrulama", "Doğrulama ve shadow karşılaştırma çalışıyor…",
+                run_shadow_validation,
                 self.project,
                 mesh_scale=float(self.mesh_scale.value()),
                 maximum_closed_loop_iterations=int(self.closed_iterations.value()),

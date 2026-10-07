@@ -42,6 +42,7 @@ from ucd.calculations.engine_precheck import evaluate_engine_precheck
 from ucd.ui.engine_precheck_dialog import EnginePrecheckDialog
 from ucd.models.project import ProjectData
 from ucd import __version__
+from .background_task import run_blocking_task
 from .window_layout import fit_window, DENSITY_WIDE
 
 
@@ -247,10 +248,18 @@ class ReportBuilderDialog(QDialog):
         directory = QFileDialog.getExistingDirectory(self, "Rapor klasörünü seç", str(Path.home()))
         if not directory:
             return
+        project, results = self.project, self.results
+        base_name = f"{project.project_code}_{config.metadata.report_type}_v{__version__}"
+
+        def _build_and_write():
+            report = build_project_report(project, config, results)
+            return report, write_project_report(report, directory, base_name, config.output_formats)
+
         try:
-            report = build_project_report(self.project, config, self.results)
-            base_name = f"{self.project.project_code}_{config.metadata.report_type}_v{__version__}"
-            paths = write_project_report(report, directory, base_name, config.output_formats)
+            report, paths = run_blocking_task(
+                self, "Rapor oluşturucu", "Rapor derleniyor ve çıktı dosyaları yazılıyor…",
+                _build_and_write,
+            )
         except Exception as exc:
             QMessageBox.critical(self, "Rapor üretilemedi", str(exc))
             return

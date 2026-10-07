@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from .window_layout import fit_window, DENSITY_FULL, DENSITY_NORMAL
+from .background_task import run_blocking_task
 
 from copy import deepcopy
 from dataclasses import asdict
@@ -3149,7 +3150,10 @@ class InstallationDesignerDialog(QDialog):
         working = deepcopy(self.project)
         working.installation_design = deepcopy(self.design)
         try:
-            result = solve_multiconductor_thermal(working, mesh_scale=1.5)
+            result = run_blocking_task(
+                self, "2D sıcaklık konturu", "Gölge 2D sıcaklık konturu hesaplanıyor…",
+                solve_multiconductor_thermal, working, mesh_scale=1.5,
+            )
         except MulticonductorThermalInputError as exc:
             QMessageBox.warning(self, "2D sıcaklık konturu", str(exc))
             return

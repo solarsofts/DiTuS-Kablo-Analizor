@@ -26,6 +26,7 @@ from ucd.calculations.multiconductor_thermal import (
     solve_multiconductor_thermal,
 )
 from ucd.models.project import ProjectData
+from .background_task import run_blocking_task
 from .window_layout import fit_window, DENSITY_WIDE
 
 
@@ -120,7 +121,9 @@ class MulticonductorThermalDialog(QDialog):
 
     def run_solver(self) -> None:
         try:
-            self.result = solve_multiconductor_thermal(
+            self.result = run_blocking_task(
+                self, "Çoklu kablo termal", "Gerçek x-y termal gölge çözümü çalışıyor…",
+                solve_multiconductor_thermal,
                 self.project,
                 mesh_scale=float(self.mesh_scale.value()),
             )

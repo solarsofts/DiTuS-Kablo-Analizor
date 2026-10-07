@@ -37,6 +37,7 @@ from ucd.calculations.engine_precheck import evaluate_engine_precheck
 from ucd.ui.engine_precheck_dialog import EnginePrecheckDialog
 from ucd.models.project import ProcurementData, ProjectData
 from ucd import __version__
+from .background_task import run_blocking_task
 from .window_layout import fit_window, DENSITY_WIDE
 
 
@@ -286,7 +287,9 @@ class ProcurementDialog(QDialog):
         if not directory:
             return
         try:
-            paths = write_procurement_package(
+            paths = run_blocking_task(
+                self, "BOQ / BOM / RFQ", "Tedarik çıktıları (xlsx, csv, json, html, md, docx, pdf) yazılıyor…",
+                write_procurement_package,
                 self.package,
                 directory,
                 f"{self.project.project_code}_BOQ_BOM_RFQ_v{__version__}",

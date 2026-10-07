@@ -167,6 +167,7 @@ from ucd.models.project import (
     is_schema_newer_than_supported,
 )
 from ucd.fileio import atomic_write_text
+from ucd.ui.background_task import run_blocking_task, task_running
 from ucd.ui.cable_library_widget import CableLibraryWidget
 from ucd.ui.project_cable_selection_dialog import ProjectCableSelectionDialog
 from ucd.ui.route_section_dialog import RouteSectionDialog
@@ -1399,9 +1400,15 @@ class MainWindow(QMainWindow):
         self._begin_engine_run("transient", "IEC 60853 geçici/çevrimsel çözümü çalışıyor.")
         try:
             if self.nodal_thermal_result is None:
-                self.nodal_thermal_result = solve_nodal_route(self.project, self.bonding_result)
-            result = solve_transient_route(
-                self.project, self.bonding_result, self.nodal_thermal_result
+                self.nodal_thermal_result = run_blocking_task(
+                    self, "IEC 60853 Geçici / Çevrimsel",
+                    "IEC 60853 için önce 2D nodal kararlı durum çözülüyor…",
+                    solve_nodal_route, self.project, self.bonding_result,
+                )
+            result = run_blocking_task(
+                self, "IEC 60853 Geçici / Çevrimsel",
+                "IEC 60853 geçici/çevrimsel çözümü çalışıyor…",
+                solve_transient_route, self.project, self.bonding_result, self.nodal_thermal_result,
             )
         except (TransientThermalInputError, NodalThermalInputError, ThermalRouteInputError) as exc:
             self._fail_engine_run("transient", str(exc))
@@ -1879,7 +1886,10 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Mesh yakınsaması", "Seçili bölgenin IEC/termal kapsam sonucu bulunamadı.")
             return
         try:
-            check = check_mesh_convergence(
+            check = run_blocking_task(
+                self, "Mesh yakınsaması",
+                f"{region_id} için kaba ve ince ağ 2D çözümleri karşılaştırılıyor…",
+                check_mesh_convergence,
                 self.project,
                 region_id,
                 region.design_current_per_cable_a,
@@ -2651,7 +2661,11 @@ class MainWindow(QMainWindow):
         self._begin_engine_run("thermal_route", "Bölgesel IEC 60287/termal güzergâh çözümü çalışıyor.")
         self._begin_engine_run("iec60287", "IEC 60287 bölgesel çözümü çalışıyor.")
         try:
-            result = solve_thermal_route(self.project, self.bonding_result)
+            result = run_blocking_task(
+                self, "Termal güzergâh",
+                "Bölgesel IEC 60287 / termal güzergâh çözümü çalışıyor…",
+                solve_thermal_route, self.project, self.bonding_result,
+            )
         except ThermalRouteInputError as exc:
             self._fail_engine_run("thermal_route", str(exc))
             self._fail_engine_run("iec60287", str(exc))
@@ -2665,8 +2679,11 @@ class MainWindow(QMainWindow):
             return
         self.thermal_route_result = result
         try:
-            self.production_electrothermal_result = solve_production_electrothermal_study(
-                self.project, active_scenario_id="DESIGN", thermal_method="AUTO"
+            self.production_electrothermal_result = run_blocking_task(
+                self, "Termal güzergâh",
+                "Üretim elektro-termal çalışma noktası çözülüyor…",
+                solve_production_electrothermal_study,
+                self.project, active_scenario_id="DESIGN", thermal_method="AUTO",
             )
         except Exception as exc:
             self.production_electrothermal_result = None
@@ -2866,7 +2883,11 @@ class MainWindow(QMainWindow):
         self._activate_workflow_stage("steady_thermal")
         self._begin_engine_run("nodal", "2D nodal kararlı durum çözümü çalışıyor.")
         try:
-            result = solve_nodal_route(self.project, self.bonding_result)
+            result = run_blocking_task(
+                self, "2D nodal termal",
+                "2D nodal kararlı durum çözümü çalışıyor…",
+                solve_nodal_route, self.project, self.bonding_result,
+            )
         except (NodalThermalInputError, ThermalRouteInputError) as exc:
             self._fail_engine_run("nodal", str(exc))
             QMessageBox.critical(self, "2D nodal termal girdi hatası", str(exc))
@@ -4938,12 +4959,19 @@ class MainWindow(QMainWindow):
         )
         if not ok:
             return
-        try:
+
+        def _optimize():
             synchronized_sections = resolve_project_bonding_route_sections(
                 self.project, mutate_project=True
             )
-            design = optimize_cross_bonding(
+            return optimize_cross_bonding(
                 self.project.cable, synchronized_sections, self.project.bonding, limit
+            )
+
+        try:
+            design = run_blocking_task(
+                self, "Otomatik Cross-Bond Tasarımı",
+                "Cross-bonding bölüm sınırları optimize ediliyor…", _optimize,
             )
         except (BondingInputError, ThermalRouteInputError) as exc:
             QMessageBox.critical(self, "Otomatik bonding tasarım hatası", str(exc))
@@ -5405,7 +5433,11 @@ class MainWindow(QMainWindow):
     def run_thermal_preprocessor(self) -> None:
         self._activate_workflow_stage("installation")
         try:
-            run = run_application_thermal_preprocessor(self.project)
+            run = run_blocking_task(
+                self, "Termal ön işlem",
+                "Bölüm bazlı termal direnç ön işlemi çalışıyor…",
+                lambda: run_application_thermal_preprocessor(self.project),
+            )
         except ThermalRouteInputError as exc:
             QMessageBox.critical(self, "Termal ön işlem girdi hatası", str(exc))
             self.warning_list.setPlainText(str(exc))
@@ -5512,7 +5544,11 @@ class MainWindow(QMainWindow):
         self._activate_workflow_stage("bonding")
         self._begin_engine_run("bonding", "Bonding/CIM çözümü çalışıyor.")
         try:
-            run = run_bonding_production(self.project)
+            run = run_blocking_task(
+                self, "Bonding",
+                "Üretim bonding / CIM ağı ve elektro-termal çalışma noktası çözülüyor…",
+                lambda: run_bonding_production(self.project),
+            )
             production_electrothermal = run.electrothermal
             production_bonding = run.production
             result = run.legacy_diagnostic
@@ -5720,8 +5756,10 @@ class MainWindow(QMainWindow):
         self._activate_workflow_stage("fault_epr")
         self._begin_engine_run("fault_epr", "Arıza/EPR çözümü çalışıyor.")
         try:
-            result = solve_fault_study(
-                self.project.cable, self.project.bonding, self.project.route_sections, self.project.fault_study
+            result = run_blocking_task(
+                self, "Arıza / EPR", "Arıza/EPR ve güç-frekansı TOV çözümü çalışıyor…",
+                solve_fault_study,
+                self.project.cable, self.project.bonding, self.project.route_sections, self.project.fault_study,
             )
         except FaultStudyError as exc:
             self._fail_engine_run("fault_epr", str(exc))
@@ -5837,7 +5875,10 @@ class MainWindow(QMainWindow):
         self._begin_engine_run("svl", "SVL boyutlandırma ve seçim motoru çalışıyor.")
         if self.bonding_result is None:
             try:
-                self.bonding_result = solve_project_bonding(self.project)
+                self.bonding_result = run_blocking_task(
+                    self, "SVL seçimi", "SVL için bonding ön çözümü çalışıyor…",
+                    solve_project_bonding, self.project,
+                )
                 self._populate_bonding_results()
                 self._populate_bonding_matrix_results()
                 self._populate_primitive_results()
@@ -5852,7 +5893,9 @@ class MainWindow(QMainWindow):
                 return
 
         try:
-            result = solve_svl_selection(
+            result = run_blocking_task(
+                self, "SVL seçimi", "SVL boyutlandırma ve seçim motoru çalışıyor…",
+                solve_svl_selection,
                 self.project.svl,
                 self.project.bonding,
                 self.bonding_result.max_standing_voltage_v,
@@ -6181,11 +6224,19 @@ class MainWindow(QMainWindow):
         self._build_tree()
 
         basis = self.project.design_basis
-        try:
+
+        def _evaluate_candidates():
             load = apply_load_calculation(basis)
-            self.project.design_progress.system_load = "COMPLETE"
             if not basis.candidates:
                 generate_generic_candidates(basis)
+            return load
+
+        try:
+            load = run_blocking_task(
+                self, "İlk tasarım iterasyonu",
+                "Tasarım yükü ve kaba kablo adayları değerlendiriliyor…", _evaluate_candidates,
+            )
+            self.project.design_progress.system_load = "COMPLETE"
             if not basis.candidates:
                 raise FirstDesignInputError("Uygun başlangıç kablo adayı üretilemedi.")
         except FirstDesignInputError as exc:
@@ -6485,6 +6536,10 @@ class MainWindow(QMainWindow):
         return result == QMessageBox.Discard
 
     def closeEvent(self, event: QCloseEvent) -> None:  # noqa: N802
+        if task_running():
+            # Motor arka planda projeyi yazarken pencere kapanmaz.
+            event.ignore()
+            return
         event.accept() if self._confirm_discard() else event.ignore()
 
     def show_about(self) -> None:
