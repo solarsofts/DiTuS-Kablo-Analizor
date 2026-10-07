@@ -577,19 +577,23 @@ def _get_catalog_number(mapping: dict[str, Any], key: str) -> float:
 
 
 def catalog_package_from_dict(raw: dict[str, Any]) -> CableLibraryData:
-    if raw.get("format") != "DITUS_CABLE_CATALOG":
+    if not isinstance(raw, dict) or raw.get("format") != "DITUS_CABLE_CATALOG":
         raise CableLibraryInputError("Dosya DiTuS kablo katalog paketi değil.")
     package = raw.get("package")
     if not isinstance(package, dict):
         raise CableLibraryInputError("Katalog paket içeriği eksik.")
+    raw_sources = package.get("sources", [])
+    raw_records = package.get("records", [])
+    if not isinstance(raw_sources, list) or not isinstance(raw_records, list):
+        raise CableLibraryInputError("Katalog paketindeki kaynak/kayıt listesi geçersiz.")
     sources = [
         _dataclass_from_dict(CableParameterSource, dict(item))
-        for item in package.get("sources", [])
+        for item in raw_sources
         if isinstance(item, dict)
     ]
     records = [
         _dataclass_from_dict(CableCatalogRecord, dict(item))
-        for item in package.get("records", [])
+        for item in raw_records
         if isinstance(item, dict)
     ]
     for record in records:

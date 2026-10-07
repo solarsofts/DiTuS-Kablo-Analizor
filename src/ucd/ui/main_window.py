@@ -111,7 +111,7 @@ from ucd.calculations import (
     EnginePrecheckResult,
     PRECHECK_CONDITIONAL,
     evaluate_engine_precheck,
-    load_application_cable_database,
+    load_application_cable_database_with_status,
     save_application_cable_database,
     installation_summary,
     validate_installation_design,
@@ -152,6 +152,7 @@ from ucd.models.project import (
     MATURITY_LEVEL_3,
     MATURITY_LEVEL_4,
     MATURITY_LEVEL_5,
+    PROJECT_SCHEMA_VERSION,
     ProjectData,
     RouteSection,
     RouteCableAssignment,
@@ -162,7 +163,9 @@ from ucd.models.project import (
     TransientLoadProfile,
     SvlCandidate,
     default_bonding_system,
+    is_schema_newer_than_supported,
 )
+from ucd.fileio import atomic_write_text
 from ucd.ui.cable_library_widget import CableLibraryWidget
 from ucd.ui.project_cable_selection_dialog import ProjectCableSelectionDialog
 from ucd.ui.route_section_dialog import RouteSectionDialog
@@ -226,7 +229,10 @@ class MainWindow(QMainWindow):
         app_data_root = Path(app_data_location) if app_data_location else project_root / "user_data"
         self.application_database_path = app_data_root / "cable_database.ditus-cable-catalog.json"
         self.database_project = ProjectData(project_name="DiTuS Uygulama Veri Tabanı")
-        self.database_project.cable_library = load_application_cable_database(self.application_database_path)
+        database_status = load_application_cable_database_with_status(self.application_database_path)
+        self.database_project.cable_library = database_status.library
+        self.application_database_save_allowed = database_status.save_allowed
+        self._database_save_block_notified = False
         self.current_file: Path | None = None
         self.dirty = False
         self.iec_results: list[Iec60287SectionResult] = []
@@ -252,6 +258,19 @@ class MainWindow(QMainWindow):
         self._build_toolbar()
         self._build_ui()
         self._refresh_all()
+        if database_status.error_message:
+            self._report_data_safety_warning("Kablo veri tabanı", database_status.error_message)
+
+    def _report_data_safety_warning(self, title: str, message: str, *, popup: bool = True) -> None:
+        """Surface a data-safety warning without blocking start-up or headless use."""
+        self.warning_list.appendPlainText(f"• {title}: {message}")
+        self.log_view.appendPlainText(f"{title}: {message}")
+        self.statusBar().showMessage(f"{title}: {message}", 20000)
+        if popup:
+            box = QMessageBox(QMessageBox.Warning, title, message, QMessageBox.Ok, self)
+            box.setAttribute(Qt.WA_DeleteOnClose)
+            box.setModal(False)
+            QTimer.singleShot(0, box, box.show)
 
     def _build_actions(self) -> None:
         self.act_new = QAction("Yeni Kablo Sistemi Tasarla", self, triggered=self.run_project_wizard)
@@ -5023,6 +5042,15 @@ class MainWindow(QMainWindow):
         )
 
     def _on_database_changed(self) -> None:
+        if not self.application_database_save_allowed:
+            self._report_data_safety_warning(
+                "Kablo veri tabanı",
+                "Mevcut veri tabanı dosyası okunamadığı için üzerine yazılmadı; değişiklik yalnız bu "
+                f"oturumda geçerlidir: {self.application_database_path}",
+                popup=not self._database_save_block_notified,
+            )
+            self._database_save_block_notified = True
+            return
         try:
             save_application_cable_database(
                 self.database_project.cable_library,
@@ -6251,8 +6279,16 @@ class MainWindow(QMainWindow):
     def _load_project_path(self, path: Path) -> None:
         try:
             raw = json.loads(path.read_text(encoding="utf-8"))
+            file_schema = raw.get("schema_version", "") if isinstance(raw, dict) else ""
             self.project = ProjectData.from_dict(raw)
-            self.project.schema_version = "0.16.4"
+            if is_schema_newer_than_supported(file_schema):
+                self._report_data_safety_warning(
+                    "Proje şema sürümü",
+                    f"'{path.name}' dosyası daha yeni bir şema sürümüyle ({file_schema}) kaydedilmiş; bu sürüm "
+                    f"en fazla {PROJECT_SCHEMA_VERSION} şemasını tanır. Tanınmayan alanlar yok sayılmış olabilir; "
+                    "dosyayı bu sürümle kaydetmek bu alanları kalıcı olarak silebilir.",
+                )
+            self.project.schema_version = PROJECT_SCHEMA_VERSION
             self.current_file = path
             self.dirty = False
             self.iec_results = []
@@ -6393,7 +6429,11 @@ class MainWindow(QMainWindow):
         if self.current_file is None:
             return self.save_project_as()
         try:
-            self.current_file.write_text(json.dumps(self.project.to_dict(touch_modified=True), ensure_ascii=False, indent=2), encoding="utf-8")
+            atomic_write_text(
+                self.current_file,
+                json.dumps(self.project.to_dict(touch_modified=True), ensure_ascii=False, indent=2),
+                backup=True,
+            )
             self.dirty = False
             self._update_title()
             self.statusBar().showMessage(f"Kaydedildi: {self.current_file}", 4000)

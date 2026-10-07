@@ -41,6 +41,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ucd.fileio import atomic_write_text
+
 from .window_layout import DENSITY_NORMAL, fit_window
 
 __all__ = [
@@ -206,14 +208,17 @@ def load_standard_defaults(path: Path) -> StandardDefaults:
         payload = json.loads(Path(path).read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return StandardDefaults()
-    return StandardDefaults.from_dict(payload)
+    if not isinstance(payload, dict):
+        return StandardDefaults()
+    try:
+        return StandardDefaults.from_dict(payload)
+    except (TypeError, AttributeError, KeyError, ValueError):
+        return StandardDefaults()
 
 
 def save_standard_defaults(path: Path, defaults: StandardDefaults) -> None:
     Path(path).parent.mkdir(parents=True, exist_ok=True)
-    Path(path).write_text(
-        json.dumps(defaults.to_dict(), ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    atomic_write_text(path, json.dumps(defaults.to_dict(), ensure_ascii=False, indent=2))
 
 
 def missing_default_fields(defaults: StandardDefaults) -> list[tuple[str, str, str]]:
@@ -416,8 +421,15 @@ class StandardDefaultsDialog(QDialog):
             )
 
     def _accept(self) -> None:
-        self.result_defaults = self.collect()
-        save_standard_defaults(self._storage_path, self.result_defaults)
+        defaults = self.collect()
+        try:
+            save_standard_defaults(self._storage_path, defaults)
+        except OSError as exc:
+            QMessageBox.critical(
+                self, "Ön tanımlar kaydedilemedi", f"Ön tanım dosyası yazılamadı:\n{self._storage_path}\n\n{exc}"
+            )
+            return
+        self.result_defaults = defaults
         self.accept()
 
     def _import_pack(self) -> None:

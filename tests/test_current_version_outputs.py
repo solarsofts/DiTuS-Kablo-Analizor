@@ -21,6 +21,8 @@ def test_package_hotfix_and_project_loader_versions() -> None:
     application_database = (ROOT / "src/ucd/calculations/application_database.py").read_text(encoding="utf-8")
     assert '__version__ = "0.16.9.4.38"' in package_source
     assert 'APP_VERSION = "0.16.9.4.38"' in main_source
-    assert 'self.project.schema_version = "0.16.4"' in main_source
+    project_source = (ROOT / "src/ucd/models/project.py").read_text(encoding="utf-8")
+    assert "self.project.schema_version = PROJECT_SCHEMA_VERSION" in main_source
+    assert 'PROJECT_SCHEMA_VERSION = "0.16.4"' in project_source
     assert requirements.startswith("# DiTuS Kablo Analizör v0.16.9.4.38")
     assert 'package_revision="0.16.9.4.37"' in application_database

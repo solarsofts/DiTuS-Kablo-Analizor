@@ -54,6 +54,7 @@ from ucd.calculations.cable_selection import (
     CatalogCandidateEvaluation,
     evaluate_catalog_candidates,
 )
+from ucd.fileio import atomic_write_text
 from ucd.ui.cable_application_dialog import CableApplicationDialog
 from ucd.ui.catalog_comparison_dialog import CatalogComparisonDialog
 from ucd.ui.graphics_views import ZoomPanGraphicsView
@@ -1165,8 +1166,12 @@ class CableLibraryWidget(QWidget):
             return
         if not path.lower().endswith(".json"):
             path += ".ditus-cable-catalog.json"
-        Path(path).write_text(
-            json.dumps(catalog_package_to_dict(self.project.cable_library), ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
+        try:
+            atomic_write_text(
+                path,
+                json.dumps(catalog_package_to_dict(self.project.cable_library), ensure_ascii=False, indent=2),
+            )
+        except OSError as exc:
+            QMessageBox.critical(self, "Katalog dışa verme", f"Katalog paketi yazılamadı:\n{exc}")
+            return
         QMessageBox.information(self, "Katalog dışa verme", f"Katalog paketi yazıldı:\n{path}")

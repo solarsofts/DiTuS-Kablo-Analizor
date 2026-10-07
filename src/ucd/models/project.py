@@ -1,8 +1,33 @@
 from __future__ import annotations
 
+import re
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from typing import Any
+
+
+PROJECT_SCHEMA_VERSION = "0.16.4"
+
+
+def schema_version_tuple(value: Any) -> tuple[int, ...] | None:
+    """Parse a dotted schema version such as "0.16.4" into ``(0, 16, 4)``.
+
+    Trailing zero parts are dropped so "0.3" and "0.3.0" compare equal.
+    Returns ``None`` when the value is not purely dotted decimal digits.
+    """
+    text = str(value).strip()
+    if not re.fullmatch(r"\d+(?:\.\d+)*", text, flags=re.ASCII):
+        return None
+    parts = [int(part) for part in text.split(".")]
+    while len(parts) > 1 and parts[-1] == 0:
+        parts.pop()
+    return tuple(parts)
+
+
+def is_schema_newer_than_supported(value: Any) -> bool:
+    """True when a file schema is newer than :data:`PROJECT_SCHEMA_VERSION`."""
+    parsed = schema_version_tuple(value)
+    return parsed is not None and parsed > schema_version_tuple(PROJECT_SCHEMA_VERSION)
 
 
 INTERNAL_THERMAL_AUTO = "AUTO_GEOMETRY"
@@ -1754,7 +1779,7 @@ class CalculationPolicyData:
 
 @dataclass
 class ProjectData:
-    schema_version: str = "0.16.4"
+    schema_version: str = PROJECT_SCHEMA_VERSION
     project_name: str = "Yeni DiTuS Kablo Projesi"
     project_code: str = "DITUS-KBL-001"
     description: str = ""
@@ -1841,7 +1866,7 @@ class ProjectData:
         if touch_modified:
             self.modified_at = datetime.now().isoformat(timespec="seconds")
         payload = asdict(self)
-        payload["schema_version"] = "0.16.4"
+        payload["schema_version"] = PROJECT_SCHEMA_VERSION
         return payload
 
     @classmethod
@@ -1852,9 +1877,10 @@ class ProjectData:
         cable_raw = dict(raw.get("cable", {}))
         route_raw = [dict(item) for item in raw.get("route_sections", [])]
 
-        try:
-            legacy_thermal = float(schema_version) < 0.3
-        except ValueError:
+        version_key = schema_version_tuple(schema_version)
+        if version_key is not None:
+            legacy_thermal = version_key < (0, 3)
+        else:
             legacy_thermal = schema_version not in {"0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "0.10", "0.11", "0.12", "0.13", "0.14", "0.15", "0.16", "0.16.1", "0.16.2", "0.16.3", "0.16.3.1", "0.16.4"}
 
         if legacy_thermal and "internal_thermal_mode" not in cable_raw:
@@ -2340,7 +2366,7 @@ class ProjectData:
             )
 
         return cls(
-            schema_version="0.16.4",
+            schema_version=PROJECT_SCHEMA_VERSION,
             project_name=raw.get("project_name", "Yeni DiTuS Kablo Projesi"),
             project_code=raw.get("project_code", "DITUS-KBL-001"),
             description=raw.get("description", ""),

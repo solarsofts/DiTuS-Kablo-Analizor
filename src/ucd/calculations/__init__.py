@@ -560,12 +560,16 @@ __all__ += [
 ]
 
 from ucd.calculations.application_database import (
+    ApplicationDatabaseLoadStatus,
     load_application_cable_database,
+    load_application_cable_database_with_status,
     save_application_cable_database,
 )
 
 __all__ += [
+    "ApplicationDatabaseLoadStatus",
     "load_application_cable_database",
+    "load_application_cable_database_with_status",
     "save_application_cable_database",
 ]
 
