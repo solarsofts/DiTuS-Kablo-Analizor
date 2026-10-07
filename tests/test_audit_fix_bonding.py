@@ -123,7 +123,7 @@ def test_lambda1_warning_is_silent_when_all_sources_are_within_criterion() -> No
 
 def test_main_window_lambda1_warning_considers_production_scenarios(tmp_path, monkeypatch) -> None:
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-    QtWidgets = pytest.importorskip("PySide6.QtWidgets")
+    QtWidgets = pytest.importorskip("PySide6.QtWidgets", exc_type=ImportError)
     import ucd.ui.main_window as main_window_module
 
     app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])

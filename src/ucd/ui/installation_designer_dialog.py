@@ -1374,7 +1374,7 @@ class InstallationCanvas(QGraphicsView):
                 points.extend([(slot.x_m - r, max(0.0, slot.depth_m - r)), (slot.x_m + r, slot.depth_m + r)])
         for source in section.external_heat_sources:
             if source.active:
-                r = max(float(source.radius_m), 0.03)
+                r = max(float(source.effective_radius_m), 0.03)
                 points.extend([(source.x_m - r, max(0.0, source.depth_m - r)), (source.x_m + r, source.depth_m + r)])
         for region in section.material_regions:
             if region.active:

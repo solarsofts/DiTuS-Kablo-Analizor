@@ -144,7 +144,7 @@ def test_procurement_csv_bundle_neutralises_formula_like_user_text(tmp_path: Pat
 @pytest.fixture()
 def qt_app():
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-    qtwidgets = pytest.importorskip("PySide6.QtWidgets")
+    qtwidgets = pytest.importorskip("PySide6.QtWidgets", exc_type=ImportError)
     app = qtwidgets.QApplication.instance() or qtwidgets.QApplication([])
     yield app
     app.processEvents()

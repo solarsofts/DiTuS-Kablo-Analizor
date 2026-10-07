@@ -383,7 +383,7 @@ def test_schema_version_helpers() -> None:
 @pytest.fixture
 def qt_app():
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-    QtWidgets = pytest.importorskip("PySide6.QtWidgets")
+    QtWidgets = pytest.importorskip("PySide6.QtWidgets", exc_type=ImportError)
     return QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
 
 

@@ -19,7 +19,7 @@ from types import SimpleNamespace
 import pytest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-QtWidgets = pytest.importorskip("PySide6.QtWidgets")
+QtWidgets = pytest.importorskip("PySide6.QtWidgets", exc_type=ImportError)
 
 from PySide6.QtCore import QTimer, Qt  # noqa: E402
 from PySide6.QtGui import QCursor  # noqa: E402
