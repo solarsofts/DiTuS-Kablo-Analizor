@@ -4,7 +4,6 @@ from .window_layout import fit_window, DENSITY_FULL, DENSITY_NORMAL
 
 from copy import deepcopy
 from dataclasses import asdict
-import csv
 import json
 from math import isfinite, sqrt
 from pathlib import Path
@@ -73,6 +72,7 @@ from ucd.calculations.cable_channel_templates import (
     reposition_circuit_cables,
     reposition_existing_cables,
 )
+from ucd.calculations.export_safety import SpreadsheetSafeDictWriter
 from ucd.calculations.multiconductor_thermal import (
     MulticonductorThermalInputError,
     solve_multiconductor_thermal,
@@ -3242,7 +3242,7 @@ class InstallationDesignerDialog(QDialog):
             }
             json_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
             with csv_path.open("w", newline="", encoding="utf-8-sig") as handle:
-                writer = csv.DictWriter(handle, fieldnames=[
+                writer = SpreadsheetSafeDictWriter(handle, fieldnames=[
                     "object_type", "object_id", "name", "circuit", "phase", "parallel",
                     "x_m", "depth_m", "material_id", "vertex_index", "value", "unit",
                 ])
@@ -3285,7 +3285,7 @@ class InstallationDesignerDialog(QDialog):
                 section, cable_outer_diameter_m=self.project.cable.overall_diameter_mm / 1000.0
             )
             with validation_path.open("w", newline="", encoding="utf-8-sig") as handle:
-                writer = csv.DictWriter(handle, fieldnames=[
+                writer = SpreadsheetSafeDictWriter(handle, fieldnames=[
                     "record_type", "severity_status", "code_category", "object_a", "object_b",
                     "actual_clearance_m", "required_clearance_m", "message",
                 ])

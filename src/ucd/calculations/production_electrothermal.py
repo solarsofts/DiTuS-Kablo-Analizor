@@ -19,7 +19,7 @@ from ucd.calculations.electrothermal_coupled import (
 )
 from ucd.calculations.multiconductor_thermal import solve_multiconductor_thermal
 from ucd.calculations.soil_dryout import SoilDryoutInputError, material_dryout_profile
-from ucd.calculations.thermal_route import resolve_thermal_region
+from ucd.calculations.thermal_route import ThermalRouteInputError, resolve_thermal_region
 from ucd.calculations.sheath_loss_completeness import AUTHORITY_FULL, resolve_sheath_loss_completeness
 from ucd.calculations.operating_scenarios import (
     CircuitOperatingState,
@@ -183,14 +183,20 @@ def _scenario_from_states(
     )
 
 
-def _project_requires_nodal_dryout(project: ProjectData) -> tuple[bool, tuple[str, ...]]:
+def _project_requires_nodal_dryout(
+    project: ProjectData,
+) -> tuple[bool, tuple[str, ...], tuple[str, ...]]:
     material_ids: set[str] = set()
+    unresolved: list[str] = []
     for region in project.thermal_design.regions:
         if not region.enabled:
             continue
         try:
             profile = resolve_thermal_region(project.thermal_design, region, project.cable)
-        except Exception:
+        except (ThermalRouteInputError, ValueError, TypeError) as exc:
+            # An unresolved region cannot prove that it has no dryout data, so
+            # it must not let the analytical preview through silently.
+            unresolved.append(f"DRYOUT_GATE_REGION_UNRESOLVED[{region.region_id}]: {exc}")
             continue
         for material in (
             profile.native_soil, profile.bedding, profile.side_backfill, profile.cable_cover,
@@ -203,10 +209,10 @@ def _project_requires_nodal_dryout(project: ProjectData) -> tuple[bool, tuple[st
             except SoilDryoutInputError:
                 # Validation will surface the detailed input error. Force nodal
                 # selection so the analytical preview cannot silently ignore it.
-                return True, (str(material.material_id),)
+                return True, (str(material.material_id),), tuple(unresolved)
             if dryout is not None:
                 material_ids.add(str(material.material_id))
-    return bool(material_ids), tuple(sorted(material_ids))
+    return bool(material_ids or unresolved), tuple(sorted(material_ids)), tuple(unresolved)
 
 
 def _region_results(coupled: ElectroThermalCoupledResult) -> tuple[ProductionRegionOperatingResult, ...]:
@@ -300,7 +306,7 @@ def solve_production_operating_scenario(
 ) -> ProductionScenarioResult:
     candidate = apply_operating_scenario(project, scenario)
     requested_method = str(thermal_method).strip().upper()
-    requires_dryout_nodal, dryout_material_ids = _project_requires_nodal_dryout(candidate)
+    requires_dryout_nodal, dryout_material_ids, dryout_gate_reasons = _project_requires_nodal_dryout(candidate)
     if requested_method == "AUTO":
         resolved_method = "NODAL" if requires_dryout_nodal else "ANALYTIC"
     elif requested_method in {"ANALYTIC", "NODAL"}:
@@ -311,8 +317,12 @@ def solve_production_operating_scenario(
         return ProductionScenarioResult(
             scenario, False, "FAILED", "INDETERMINATE", None, "", "", None, "", (), None,
             "ANALYTIC_DRYOUT_REQUIRES_NODAL",
-            "Kritik-izoterm kuruma verisi çok kablolu üretim geometrisinde nodal çözüm gerektirir.",
-            scenario.trace + (f"dryout_materials={','.join(dryout_material_ids)}",),
+            "Kritik-izoterm kuruma verisi çok kablolu üretim geometrisinde nodal çözüm gerektirir."
+            + (
+                " Termal bölge çözülemediği için kuruma verisi doğrulanamadı: " + "; ".join(dryout_gate_reasons)
+                if dryout_gate_reasons else ""
+            ),
+            scenario.trace + (f"dryout_materials={','.join(dryout_material_ids)}",) + dryout_gate_reasons,
             thermal_method=resolved_method,
             dryout_material_ids=dryout_material_ids,
         )

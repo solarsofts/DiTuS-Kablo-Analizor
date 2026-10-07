@@ -6107,6 +6107,9 @@ class MainWindow(QMainWindow):
                 f"DXF yüklendi: {path}\nKatman: {len(geometry.layers)}, çizgi: {len(geometry.lines)}, "
                 f"polyline: {len(geometry.polylines)}, daire: {len(geometry.circles)}"
             )
+            if geometry.skipped_entities_warning:
+                self.log_view.appendPlainText(geometry.skipped_entities_warning)
+                self.statusBar().showMessage(geometry.skipped_entities_warning, 12000)
         except Exception as exc:
             QMessageBox.critical(self, "DXF içe aktarma hatası", f"Dosya okunamadı:\n{exc}")
 
@@ -6145,15 +6148,21 @@ class MainWindow(QMainWindow):
         self.svl_result = None
         self.last_bonding_design = None
         self.plan_view.clear_geometry()
+        dxf_warning = ""
         if self.project.cad_source:
             try:
-                self.plan_view.load_dxf(read_dxf_geometry(self.project.cad_source))
+                geometry = read_dxf_geometry(self.project.cad_source)
+                self.plan_view.load_dxf(geometry)
+                dxf_warning = geometry.skipped_entities_warning
             except Exception as exc:
                 self.plan_view.draw_sample_route()
                 self.project.design_progress.missing_data.append(f"DXF yeniden açılamadı: {exc}")
         else:
             self.plan_view.draw_sample_route()
         self._refresh_all()
+        if dxf_warning:
+            self.log_view.appendPlainText(dxf_warning)
+            self.statusBar().showMessage(dxf_warning, 12000)
         self._update_title()
         self._show_workspace_widget(self.first_design_widget, "İlk Tasarım")
         if wizard.run_first_iteration:

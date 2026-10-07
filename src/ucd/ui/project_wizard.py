@@ -338,7 +338,10 @@ class NewDesignWizard(QDialog):
             self.dxf_edit.setText(self._dxf_path)
             self.route_length_spin.setValue(length)
             self.route_dxf_radio.setChecked(True)
-            self.route_summary.setText(f"DXF toplam çizgi/polyline uzunluğu: {length:.2f} çizim birimi. Birim ve doğru güzergâh katmanı kullanıcı tarafından doğrulanmalıdır.")
+            summary = f"DXF toplam çizgi/polyline uzunluğu: {length:.2f} çizim birimi. Birim ve doğru güzergâh katmanı kullanıcı tarafından doğrulanmalıdır."
+            if geometry.skipped_entities_warning:
+                summary += "\n" + geometry.skipped_entities_warning
+            self.route_summary.setText(summary)
         except Exception as exc:
             QMessageBox.critical(self, "DXF", str(exc))
 

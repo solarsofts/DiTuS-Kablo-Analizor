@@ -13,6 +13,25 @@ class DxfGeometry:
     circles: list[tuple[tuple[float, float], float, str]] = field(default_factory=list)
     texts: list[tuple[tuple[float, float], str, str]] = field(default_factory=list)
     layers: set[str] = field(default_factory=set)
+    # Entity type -> number of entities that could not be read and were skipped.
+    skipped_entities: dict[str, int] = field(default_factory=dict)
+
+    @property
+    def skipped_entity_count(self) -> int:
+        return sum(self.skipped_entities.values())
+
+    @property
+    def skipped_entities_warning(self) -> str:
+        if not self.skipped_entities:
+            return ""
+        details = ", ".join(f"{kind}: {count}" for kind, count in sorted(self.skipped_entities.items()))
+        return (
+            f"DXF uyarısı: okunamayan {self.skipped_entity_count} varlık atlandı ({details}). "
+            "İçe aktarılan geometri ve uzunluk eksik olabilir; DXF dosyasını kontrol edin."
+        )
+
+    def record_skipped(self, kind: str) -> None:
+        self.skipped_entities[kind] = self.skipped_entities.get(kind, 0) + 1
 
 
 def read_dxf_geometry(path: str | Path) -> DxfGeometry:
@@ -35,7 +54,8 @@ def read_dxf_geometry(path: str | Path) -> DxfGeometry:
             try:
                 pts = [(float(v.dxf.location.x), float(v.dxf.location.y)) for v in entity.vertices]
             except Exception:
-                pts = []
+                result.record_skipped(kind)
+                continue
             if len(pts) >= 2:
                 result.polylines.append((pts, bool(getattr(entity, "is_closed", False)), layer))
         elif kind == "CIRCLE":
@@ -47,5 +67,5 @@ def read_dxf_geometry(path: str | Path) -> DxfGeometry:
                 insert = entity.dxf.insert
                 result.texts.append(((float(insert.x), float(insert.y)), text, layer))
             except Exception:
-                pass
+                result.record_skipped(kind)
     return result

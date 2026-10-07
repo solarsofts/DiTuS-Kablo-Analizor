@@ -14,6 +14,7 @@ from typing import Any, Iterable
 
 from ucd import __version__
 from ucd.calculations.installation_coupling import project_with_synchronized_installation_geometry
+from ucd.calculations.export_safety import spreadsheet_safe_row
 from ucd.calculations.bonding_accessories import (
     ACCESSORY_VALID,
     BondingAccessoryPlan,
@@ -1026,11 +1027,11 @@ def _write_csv_bundle(package: ProcurementPackage, directory: Path, stem: str) -
             writer = csv.writer(handle, delimiter=";")
             writer.writerow(["Kalem No", "Kategori", "Tanım", "Teknik Özellik", "Otomatik Miktar", "Nihai Miktar", "Birim", "Durum", "Kaynak Nesne", "Güzergâh", "Formül", "Override Gerekçesi"])
             for item in items:
-                writer.writerow([
+                writer.writerow(spreadsheet_safe_row([
                     item.item_id, item.category, item.description, item.technical_specification,
                     item.auto_quantity, item.final_quantity, item.unit, item.status,
                     item.basis.source_object, item.basis.route_reference, item.basis.formula, item.override_rationale,
-                ])
+                ]))
         paths[name] = path
     drum_path = directory / f"{stem}_drum_plan.csv"
     with drum_path.open("w", encoding="utf-8-sig", newline="") as handle:
@@ -1041,13 +1042,13 @@ def _write_csv_bundle(package: ProcurementPackage, directory: Path, stem: str) -
             "Aşım m", "Tahmini Net Ağırlık kg", "Kesimler", "Fiziksel Durum", "Veri Durumu", "Not"
         ])
         for drum in package.drums:
-            writer.writerow([
+            writer.writerow(spreadsheet_safe_row([
                 drum.drum_id, drum.maximum_length_m, drum.route_cut_length_m, drum.order_allowance_m,
                 drum.spare_stock_length_m, drum.rounding_reconciliation_m, drum.loaded_length_m,
                 drum.capacity_balance_m, drum.remaining_capacity_m, drum.overload_m,
                 drum.estimated_net_mass_kg, ", ".join(f"{c.cut_id}:{c.required_cut_length_m:g}m" for c in drum.cuts),
                 drum.assignment_status, drum.status, drum.notes,
-            ])
+            ]))
     paths["drum_plan"] = drum_path
     return paths
 
@@ -1058,7 +1059,8 @@ def _write_xlsx(package: ProcurementPackage, path: Path) -> None:
     except ImportError as exc:
         raise ProcurementInputError("XLSX çıktısı için XlsxWriter kurulmalıdır.") from exc
 
-    workbook = xlsxwriter.Workbook(path)
+    # Project text must stay literal; only explicit write_formula cells are formulas.
+    workbook = xlsxwriter.Workbook(path, {"strings_to_formulas": False})
     workbook.set_properties({
         "title": f"{package.project_code} BOQ BOM RFQ",
         "subject": package.project_name,
