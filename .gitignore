@@ -1,0 +1,24 @@
+# Python bytecode / build artefacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Virtual environments
+.venv/
+venv/
+
+# Tool caches and coverage
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Release acceptance scratch output
+.release_acceptance/
+
+# Local application data (fallback when no AppData location exists)
+user_data/

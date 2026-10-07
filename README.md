@@ -1,5 +1,7 @@
 
-# DiTuS Kablo Analizör v0.16.9.4.18
+# DiTuS Kablo Analizör
+
+Güncel sürüm numarasının tek kaynağı `VERSION.txt` dosyasıdır; `ucd.__version__` ve paket meta verisi aynı değeri taşır.
 
 DiTuS Kablo Analizör; yeraltı güç kablosu güzergâhı, kablo-kanal geometrisi, IEC 60287 termal rating, bonding/kılıf, 2D nodal termal alan, transient, arıza/EPR, SVL ve tedarik metrajı iş akışlarını tek proje içinde yürütür.
 

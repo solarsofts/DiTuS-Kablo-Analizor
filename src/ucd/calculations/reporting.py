@@ -532,7 +532,7 @@ def _section_iec(results: Sequence[Any], production: Any | None = None) -> Repor
         for scenario_result in getattr(production, "scenarios", ()):
             scenario = getattr(scenario_result, "scenario", None)
             circuit_summary = ", ".join(
-                f"{getattr(item, 'circuit_id', '?')}={'OFF' if not getattr(item, 'energized', False) else f'{getattr(item, 'phase_current_a', 0.0):.3f} A'}"
+                f"{getattr(item, 'circuit_id', '?')}={'OFF' if not getattr(item, 'energized', False) else format(getattr(item, 'phase_current_a', 0.0), '.3f') + ' A'}"
                 for item in getattr(scenario, "circuit_states", ())
             )
             aliases = ", ".join(getattr(scenario, "equivalent_scenario_ids", ()) or ())

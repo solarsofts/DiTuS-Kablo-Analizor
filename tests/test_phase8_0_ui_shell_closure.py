@@ -56,7 +56,7 @@ def test_nested_dialogs_also_go_through_the_authority() -> None:
 
 
 def test_density_classes_resolve_inside_the_work_area() -> None:
-    pytest.importorskip("PySide6.QtWidgets")
+    pytest.importorskip("PySide6.QtWidgets", exc_type=ImportError)
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
     from PySide6 import QtWidgets
 
@@ -92,7 +92,7 @@ def test_density_classes_resolve_inside_the_work_area() -> None:
 # ---------------------------------------------------------------------------
 
 def test_stage_host_frame_carries_position_missing_items_and_navigation() -> None:
-    pytest.importorskip("PySide6.QtWidgets")
+    pytest.importorskip("PySide6.QtWidgets", exc_type=ImportError)
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
     from PySide6 import QtWidgets
 
@@ -131,7 +131,7 @@ def test_workspace_widgets_live_inside_the_stage_host_body() -> None:
 # ---------------------------------------------------------------------------
 
 def test_tree_status_and_tooltips_cover_every_branch() -> None:
-    pytest.importorskip("PySide6.QtWidgets")
+    pytest.importorskip("PySide6.QtWidgets", exc_type=ImportError)
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
     from PySide6 import QtWidgets
     from PySide6.QtCore import Qt
@@ -163,7 +163,7 @@ def test_tree_status_and_tooltips_cover_every_branch() -> None:
 
 
 def test_group_nodes_roll_up_the_worst_child_status() -> None:
-    pytest.importorskip("PySide6.QtWidgets")
+    pytest.importorskip("PySide6.QtWidgets", exc_type=ImportError)
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
     from PySide6 import QtWidgets
 
@@ -191,7 +191,7 @@ def test_tooltips_are_width_limited_rich_text() -> None:
 # ---------------------------------------------------------------------------
 
 def test_every_required_default_names_its_standard_clause() -> None:
-    pytest.importorskip("PySide6.QtWidgets")
+    pytest.importorskip("PySide6.QtWidgets", exc_type=ImportError)
     from ucd.ui.standard_defaults_dialog import FIELD_GROUPS
 
     for _key, _title, rows in FIELD_GROUPS:
@@ -201,7 +201,7 @@ def test_every_required_default_names_its_standard_clause() -> None:
 
 
 def test_missing_defaults_are_reported_with_clause_addresses() -> None:
-    pytest.importorskip("PySide6.QtWidgets")
+    pytest.importorskip("PySide6.QtWidgets", exc_type=ImportError)
     from ucd.ui.standard_defaults_dialog import StandardDefaults, missing_default_fields
 
     missing = missing_default_fields(StandardDefaults())
@@ -212,7 +212,7 @@ def test_missing_defaults_are_reported_with_clause_addresses() -> None:
 
 
 def test_defaults_round_trip_through_an_exportable_pack(tmp_path) -> None:
-    pytest.importorskip("PySide6.QtWidgets")
+    pytest.importorskip("PySide6.QtWidgets", exc_type=ImportError)
     from ucd.ui.standard_defaults_dialog import (
         CoefficientEntry,
         StandardDefaults,
@@ -234,7 +234,7 @@ def test_defaults_round_trip_through_an_exportable_pack(tmp_path) -> None:
 
 
 def test_value_without_provenance_is_not_accepted_as_complete() -> None:
-    pytest.importorskip("PySide6.QtWidgets")
+    pytest.importorskip("PySide6.QtWidgets", exc_type=ImportError)
     from ucd.ui.standard_defaults_dialog import CoefficientEntry
 
     assert not CoefficientEntry(1.2, "", "").is_complete

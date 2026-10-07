@@ -30,7 +30,7 @@ def test_headless_thermal_preprocessor_keeps_partial_preview_contract():
 
 def test_main_window_constructs_in_offscreen_qt(tmp_path, monkeypatch):
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-    QtWidgets = pytest.importorskip("PySide6.QtWidgets")
+    QtWidgets = pytest.importorskip("PySide6.QtWidgets", exc_type=ImportError)
     from ucd.ui.main_window import MainWindow
 
     app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
