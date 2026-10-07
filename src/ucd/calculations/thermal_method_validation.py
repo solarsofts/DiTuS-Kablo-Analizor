@@ -230,6 +230,8 @@ def _quality(region: Any, mesh: Any | None, profile: ThermalMethodToleranceProfi
         mesh_amp = getattr(mesh, "ampacity_difference_percent", None)
         mesh_temp = getattr(mesh, "difference_c", None)
         mesh_status = VALIDATION_PASS if bool(getattr(mesh, "passed", False)) else VALIDATION_FAIL
+        if not bool(getattr(mesh, "solutions_converged", True)):
+            reasons.append("Mesh duyarlılığı nodal çözümlerinden en az biri yakınsamadı.")
         if mesh_amp is None:
             reasons.append("Mesh ampacity duyarlılığı kaydı bulunmuyor.")
         elif abs(float(mesh_amp)) > profile.mesh_ampacity_percent:

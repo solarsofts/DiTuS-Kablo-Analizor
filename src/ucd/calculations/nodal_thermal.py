@@ -226,6 +226,7 @@ class MeshConvergenceResult:
     refined_ampacity_a: float = 0.0
     ampacity_difference_a: float = 0.0
     ampacity_difference_percent: float = 0.0
+    solutions_converged: bool = True
 
 
 @dataclass(frozen=True)
@@ -1104,6 +1105,25 @@ def _section_for_profile(profile: EffectiveThermalProfile) -> RouteSection:
     )
 
 
+def _internal_thermal_chains(cable: CableData, lambda1: float) -> tuple[float, float]:
+    """IEC 60287-1-1 internal chains between conductor and jacket.
+
+    Returns (internal_chain, dielectric_internal_chain) so that
+    theta_c - theta_jacket = Wc * internal_chain + Wd * dielectric_internal_chain.
+    """
+
+    internal = resolve_internal_thermal_resistance(cable)
+    n = max(1, int(cable.conductors_per_cable))
+    lambda2 = max(0.0, float(cable.armour_loss_factor))
+    internal_chain = (
+        internal.t1_km_w
+        + n * (1.0 + lambda1) * internal.t2_km_w
+        + n * (1.0 + lambda1 + lambda2) * internal.t3_km_w
+    )
+    dielectric_internal_chain = 0.5 * internal.t1_km_w + n * (internal.t2_km_w + internal.t3_km_w)
+    return internal_chain, dielectric_internal_chain
+
+
 def _solve_at_current(
     model: _NodalModel,
     current_a: float,
@@ -1128,15 +1148,8 @@ def _solve_at_current(
     cable_currents = current * factors
     wd = dielectric_loss_w_m(cable)
     dielectric_losses = np.where(factors > 0.0, wd, 0.0)
-    internal = resolve_internal_thermal_resistance(cable)
-    n = max(1, int(cable.conductors_per_cable))
     lambda2 = max(0.0, float(cable.armour_loss_factor))
-    internal_chain = (
-        internal.t1_km_w
-        + n * (1.0 + lambda1) * internal.t2_km_w
-        + n * (1.0 + lambda1 + lambda2) * internal.t3_km_w
-    )
-    dielectric_internal_chain = 0.5 * internal.t1_km_w + n * (internal.t2_km_w + internal.t3_km_w)
+    internal_chain, dielectric_internal_chain = _internal_thermal_chains(cable, lambda1)
     temperatures = np.full(len(model.locations), max(20.0, model.profile.ambient_temperature_c + 20.0), dtype=float)
     field = np.full((model.ny, model.nx), model.profile.ambient_temperature_c, dtype=float)
     conductor_losses = np.zeros(len(model.locations), dtype=float)
@@ -1206,6 +1219,38 @@ def _solve_at_current(
     )
 
 
+_NONCONVERGED_RETRY_ITERATIONS = 120
+
+
+def _solve_at_current_with_retry(
+    model: _NodalModel,
+    current_a: float,
+    lambda1: float,
+    *,
+    max_iterations: int,
+    tolerance_c: float,
+    point_heat_sources: tuple[tuple[float, float, float], ...] = (),
+    current_factors: tuple[float, ...] | None = None,
+) -> tuple[tuple[np.ndarray, tuple[NodalCableResult, ...], int, bool, float, float, float, float], int]:
+    """Solve once; repeat a non-converged evaluation with a larger iteration budget.
+
+    Returns the solution tuple of ``_solve_at_current`` and the number of solves.
+    The caller must still check the ``converged`` flag (index 3).
+    """
+
+    solved = _solve_at_current(
+        model, current_a, lambda1, max_iterations=max_iterations, tolerance_c=tolerance_c,
+        point_heat_sources=point_heat_sources, current_factors=current_factors,
+    )
+    if solved[3] or max_iterations >= _NONCONVERGED_RETRY_ITERATIONS:
+        return solved, 1
+    retried = _solve_at_current(
+        model, current_a, lambda1, max_iterations=_NONCONVERGED_RETRY_ITERATIONS, tolerance_c=tolerance_c,
+        point_heat_sources=point_heat_sources, current_factors=current_factors,
+    )
+    return retried, 2
+
+
 def _find_ampacity(
     model: _NodalModel,
     lambda1: float,
@@ -1218,13 +1263,23 @@ def _find_ampacity(
     low = 0.0
     high = max(100.0, design_current_a * 1.25, iec_ampacity_a * 1.20)
     evaluations = 0
-    for _ in range(10):
-        _, cables, *_ = _solve_at_current(
-            model, high, lambda1, max_iterations=25, tolerance_c=0.04,
+
+    def evaluate(current_a: float) -> float:
+        nonlocal evaluations
+        solved, solves = _solve_at_current_with_retry(
+            model, current_a, lambda1, max_iterations=25, tolerance_c=0.04,
             point_heat_sources=point_heat_sources, current_factors=current_factors,
         )
-        evaluations += 1
-        if max(item.conductor_temperature_c for item in cables) >= limit:
+        evaluations += solves
+        if not solved[3]:
+            raise NodalThermalInputError(
+                f"{model.region.region_id}: {current_a:.1f} A akımda nodal sıcaklık iterasyonu "
+                f"{solved[2]} iterasyonda yakınsamadı; ampacity yakınsamamış sıcaklıkla belirlenemez."
+            )
+        return max(item.conductor_temperature_c for item in solved[1])
+
+    for _ in range(10):
+        if evaluate(high) >= limit:
             break
         high *= 1.5
     else:
@@ -1234,12 +1289,7 @@ def _find_ampacity(
 
     for _ in range(22):
         mid = 0.5 * (low + high)
-        _, cables, *_ = _solve_at_current(
-            model, mid, lambda1, max_iterations=25, tolerance_c=0.04,
-            point_heat_sources=point_heat_sources, current_factors=current_factors,
-        )
-        evaluations += 1
-        if max(item.conductor_temperature_c for item in cables) > limit:
+        if evaluate(mid) > limit:
             high = mid
         else:
             low = mid
@@ -1334,10 +1384,11 @@ def solve_nodal_region(
         project, region, profile, present_circuit_count, mesh_scale,
         explicit_locations=explicit_locations, value_overrides=value_overrides,
     )
-    field, cables, iterations, converged, source_heat, boundary_heat, balance, residual = _solve_at_current(
-        model, design_current_per_cable_a, regional_lambda1,
+    solved, _ = _solve_at_current_with_retry(
+        model, design_current_per_cable_a, regional_lambda1, max_iterations=40, tolerance_c=0.02,
         point_heat_sources=point_heat_sources, current_factors=current_factors,
     )
+    field, cables, iterations, converged, source_heat, boundary_heat, balance, residual = solved
     if calculate_ampacity:
         ampacity, ampacity_evaluations = _find_ampacity(
             model, regional_lambda1, design_current_per_cable_a, iec_result.ampacity_a,
@@ -1354,7 +1405,7 @@ def solve_nodal_region(
     if balance > 0.5:
         warnings.append(f"Enerji dengesi hatası %{balance:.3f}; ağ/sınır koşullarını inceleyin.")
     if not converged:
-        warnings.append("Sıcaklığa bağlı iletken kaybı iterasyonu yakınsamadı.")
+        warnings.append(f"Sıcaklığa bağlı iletken kaybı iterasyonu {iterations} iterasyonda yakınsamadı.")
     if energized_count < present_circuit_count:
         warnings.append(
             "Seçili kapsam izole/eksik-devre termal çözümüdür; diğer fiziksel kablolar pasif ısıl cisim olarak korunmuş, elektriksel kayıpları sıfırlanmıştır."
@@ -1771,7 +1822,8 @@ def check_mesh_convergence(
     percent = difference / max(abs(refined.maximum_conductor_temperature_c), 1e-12) * 100.0
     ampacity_difference = refined.ampacity_per_cable_a - coarse.ampacity_per_cable_a
     ampacity_percent = ampacity_difference / max(abs(refined.ampacity_per_cable_a), 1e-12) * 100.0
-    passed = difference <= 1.0 and abs(ampacity_percent) <= tolerance_percent
+    solutions_converged = bool(coarse.converged and refined.converged)
+    passed = difference <= 1.0 and abs(ampacity_percent) <= tolerance_percent and solutions_converged
     return MeshConvergenceResult(
         region_id,
         current_per_cable_a,
@@ -1786,4 +1838,5 @@ def check_mesh_convergence(
         refined.ampacity_per_cable_a,
         ampacity_difference,
         ampacity_percent,
+        solutions_converged,
     )

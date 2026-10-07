@@ -28,6 +28,15 @@ Kararlı durum sonlu hacim matrisi korunur. Her hücreye `ρc·A` biçiminde bir
 
 Kablo çekirdeği, kablo dış alanından ayrı bir lumped iletken düğümü olarak tutulur. İletken I²R kaybı sıcaklığa göre güncellenir; iç termal direnç üzerinden jacket alanına ısı aktarılır. Sheath, armour ve dielektrik kayıpları 2D alanın kablo hücrelerine uygulanır.
 
+İç zincir, iletken düğümü (ısı kapasiteli) → T1 → yarı-statik ekran düğümü → T2+T3 → jacket eşdeğeridir; kılıf/zırh kaybı ve Wd/2 ekran düğümüne girer. `R = T1+T2+T3` üzerinde sıcaklık ofseti ile yazılır:
+
+```text
+K = Wc·(T1 + n(1+λ1)T2 + n(1+λ1+λ2)T3 − R) + Wd·(0,5·T1 + n(T2+T3) − 0,5·R)
+q_transfer = (θc − θjacket − K) / R
+```
+
+Kalıcı limitte `θc − θjacket = Wc·[T1 + n(1+λ1)T2 + n(1+λ1+λ2)T3] + Wd·[0,5·T1 + n(T2+T3)]` olur; bu, 2D nodal kararlı durum çözücüsüyle aynı IEC 60287 zinciridir. Toprağa verilen ısı kalıcı durumda toplam kablo kaybına eşittir; ısı iletkene geri aktığında `q_transfer` negatif olabilir ve enerji korunumu için kırpılmaz.
+
 ## Başlangıç koşulları
 
 - `CYCLIC_STEADY`: yük çevrimi uç sıcaklık farkı toleransa girene veya maksimum çevrim sayısına ulaşana kadar tekrarlanır.

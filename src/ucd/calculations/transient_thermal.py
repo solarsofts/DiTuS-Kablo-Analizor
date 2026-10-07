@@ -18,7 +18,8 @@ from ucd.calculations.nodal_thermal import (
     NodalRouteStudyResult,
     NodalThermalInputError,
     _NodalModel,
-    _solve_at_current,
+    _internal_thermal_chains,
+    _solve_at_current_with_retry,
     solve_nodal_route,
 )
 from ucd.calculations.thermal_resistance import resolve_internal_thermal_resistance
@@ -246,9 +247,15 @@ def _initial_state(
     ambient = float(model.profile.ambient_temperature_c)
     first_current = base_current_a * _profile_multiplier(profile, 0.0)
     if mode in {TRANSIENT_INITIAL_STEADY, TRANSIENT_INITIAL_CYCLIC}:
-        field, cables, *_ = _solve_at_current(
+        solved, _ = _solve_at_current_with_retry(
             model, first_current, lambda1, max_iterations=35, tolerance_c=0.03
         )
+        field, cables, iterations, converged, *_ = solved
+        if not converged:
+            raise TransientThermalInputError(
+                f"{model.region.region_id}: {first_current:.1f} A başlangıç kararlı durum sıcaklık iterasyonu "
+                f"{iterations} iterasyonda yakınsamadı; geçici çözüm yakınsamamış başlangıç durumuyla başlatılamaz."
+            )
         conductor = np.asarray([item.conductor_temperature_c for item in cables], dtype=float)
         return _TransientState(np.asarray(field, dtype=float), conductor)
     if mode == TRANSIENT_INITIAL_USER:
@@ -260,6 +267,45 @@ def _initial_state(
             np.full(len(model.locations), initial, dtype=float),
         )
     raise TransientThermalInputError(f"Bilinmeyen başlangıç koşulu: {mode}")
+
+
+def _cable_internal_step(
+    old_core: np.ndarray,
+    jacket: np.ndarray,
+    conductor_loss: np.ndarray,
+    *,
+    wd: float,
+    lambda1: float,
+    lambda2: float,
+    internal_chain: float,
+    dielectric_internal_chain: float,
+    r_internal: float,
+    c_core: float,
+    dt_s: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Implicit conductor-node step of the cable interior.
+
+    Conductor node (c_core) -> T1 -> quasi-static screen node -> T2+T3 -> jacket;
+    sheath/armour loss and half of Wd enter at the screen node.  Written on the
+    lumped R = T1+T2+T3 with the offset K, the steady limit is the IEC chain
+    theta_c - theta_j = Wc*internal_chain + Wd*dielectric_internal_chain and the
+    heat delivered to the jacket equals the total cable loss.
+    Returns (conductor temperature, heat delivered to the jacket) per cable.
+    """
+
+    offset = (
+        conductor_loss * (internal_chain - r_internal)
+        + wd * (dielectric_internal_chain - 0.5 * r_internal)
+    )
+    storage = c_core / dt_s
+    q_core = conductor_loss + 0.5 * wd
+    core_new = (
+        storage * old_core + q_core + (jacket + offset) / r_internal
+    ) / (storage + 1.0 / r_internal)
+    q_transfer = (core_new - jacket - offset) / r_internal
+    sheath_loss = conductor_loss * max(0.0, lambda1)
+    armour_loss = conductor_loss * lambda2
+    return core_new, sheath_loss + armour_loss + 0.5 * wd + q_transfer
 
 
 def _simulate(
@@ -287,6 +333,7 @@ def _simulate(
     lambda2 = max(0.0, float(cable.armour_loss_factor))
     internal = resolve_internal_thermal_resistance(cable)
     r_internal = max(1e-5, float(internal.t1_km_w + internal.t2_km_w + internal.t3_km_w))
+    internal_chain, dielectric_internal_chain = _internal_thermal_chains(cable, lambda1)
     c_core = _conductor_heat_capacity_j_mk(project)
 
     old_field = np.asarray(initial_state.field_c, dtype=float).copy()
@@ -325,14 +372,12 @@ def _simulate(
                     cable, eval_temp, model.profile.phase_spacing_m
                 )
                 conductor_loss[index] = current**2 * rac_km / 1000.0
-            sheath_loss = conductor_loss * max(0.0, lambda1)
-            armour_loss = conductor_loss * lambda2
-            q_core = conductor_loss + 0.5 * wd
-            core_new = (
-                (c_core / dt_s) * old_core + q_core + jacket_guess / r_internal
-            ) / ((c_core / dt_s) + 1.0 / r_internal)
-            q_transfer = np.maximum(0.0, (core_new - jacket_guess) / r_internal)
-            q_outer = sheath_loss + armour_loss + 0.5 * wd + q_transfer
+            core_new, q_outer = _cable_internal_step(
+                old_core, jacket_guess, conductor_loss,
+                wd=wd, lambda1=lambda1, lambda2=lambda2,
+                internal_chain=internal_chain, dielectric_internal_chain=dielectric_internal_chain,
+                r_internal=r_internal, c_core=c_core, dt_s=dt_s,
+            )
             rhs = model.boundary_rhs + _source_vector(model, q_outer) + (capacity / dt_s) * old_flat
             field_new = np.asarray(solve_dynamic(rhs), dtype=float).reshape((model.ny, model.nx))
             jacket_new = model.cable_jacket_temperatures(field_new)
