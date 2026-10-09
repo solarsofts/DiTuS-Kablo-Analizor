@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Scenario-resolved physical-cable operating points for production coupling.
 
 FAZ 6.1/6.2 separates physical presence, energization and RMS current.  The
@@ -7,6 +5,8 @@ module is intentionally model-schema neutral: it derives immutable operating
 scenarios from the existing project and applies them to deep-copied solver
 inputs without mutating the project.
 """
+
+from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import dataclass

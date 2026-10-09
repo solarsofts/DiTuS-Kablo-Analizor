@@ -1,6 +1,6 @@
-from __future__ import annotations
-
 """Project-level geometry orchestration shared by UI, demos and headless runs."""
+
+from __future__ import annotations
 
 from copy import deepcopy
 

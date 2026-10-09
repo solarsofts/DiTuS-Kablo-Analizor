@@ -1,11 +1,11 @@
-from __future__ import annotations
-
 """Closed-loop N-core/N-sheath electro-thermal coordinator.
 
 The same read-only physical kernels support independent shadow comparison and
 scenario-resolved production operating points. Project data and legacy λ1 are
 never mutated by the coordinator.
 """
+
+from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import dataclass

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """IEC 60287 soil partial-dryout helpers.
 
 The standard two-zone equation is used only for a single isolated direct-buried
@@ -7,6 +5,8 @@ cable representation.  Multi-cable / multi-circuit geometry is handled by the
 nonlinear nodal critical-isotherm model instead of extending the literal IEC
 formula outside its stated simple-soil scope.
 """
+
+from __future__ import annotations
 
 from dataclasses import dataclass
 from math import isfinite, sqrt

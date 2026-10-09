@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Independent IEC/IEEE closed-form validation helpers for cross bonding.
 
 Production remains the explicit primitive/global network.  These helpers are
@@ -7,6 +5,8 @@ verification oracles only and deliberately compare longitudinal metallic
 sheath I²R loss; they do not claim to represent the IEC local sheath-eddy loss
 component.
 """
+
+from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import dataclass

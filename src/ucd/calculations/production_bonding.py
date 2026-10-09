@@ -1,11 +1,11 @@
-from __future__ import annotations
-
 """FAZ 6.6 production bonding authority.
 
 The production bonding view is not a second electromagnetic solver. It is a
 scenario-oriented projection of the already authoritative closed-loop global
 N-core/N-sheath network used by the electro-thermal production calculation.
 """
+
+from __future__ import annotations
 
 from dataclasses import dataclass
 from math import isfinite

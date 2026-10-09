@@ -40,9 +40,9 @@ def _pdf_with_text(text: str) -> bytes:
 def test_current_package_publish_integrity_passes() -> None:
     excluded = {
         "MANIFEST.txt",
-        "PUBLISH_INTEGRITY_AUDIT_v0.16.9.4.38.json",
-        "PACKAGED_TEST_RESULTS_v0.16.9.4.38.txt",
-        "PUBLISH_CLEANUP_AUDIT_v0.16.9.4.38.md",
+        "PUBLISH_INTEGRITY_AUDIT_v0.16.9.4.39.json",
+        "PACKAGED_TEST_RESULTS_v0.16.9.4.39.txt",
+        "PUBLISH_CLEANUP_AUDIT_v0.16.9.4.39.md",
     }
     result = scan_package(ROOT, excluded_paths=excluded)
     assert result.status == "PASS", [
@@ -186,6 +186,6 @@ def test_approved_signature_is_allowed_only_in_reviewed_path(tmp_path: Path) -> 
 
 
 def test_engine_directories_match_locked_v0169417_baseline() -> None:
-    result = verify_engine_lock(ROOT, ROOT / "ENGINE_BASELINE_v0.16.9.4.38.sha256")
+    result = verify_engine_lock(ROOT, ROOT / "ENGINE_BASELINE_v0.16.9.4.39.sha256")
     assert result["status"] == "PASS", result
-    assert result["verified_file_count"] == result["expected_file_count"] == 53
+    assert result["verified_file_count"] == result["expected_file_count"] == 54

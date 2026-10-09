@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Built-in editable cable-channel section templates.
 
 Templates are drafting aids, not certified construction details. Applying a
@@ -8,6 +6,8 @@ parametric channel geometry, duct slots, cable coordinates/slot assignments,
 and trace metadata. Custom material polygons and external heat sources remain
 in the section and are therefore revalidated after application.
 """
+
+from __future__ import annotations
 
 from dataclasses import dataclass
 from math import ceil, sqrt

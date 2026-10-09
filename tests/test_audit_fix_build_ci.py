@@ -307,9 +307,33 @@ def test_ci_requires_qt_runtime_and_compiles_before_pytest() -> None:
         assert library in text
     apt_step = text.index("apt-get install")
     install_step = text.index("python -m pip install -r requirements.txt")
+    ruff_step = text.index("python -m ruff check src tools tests examples app.py")
     compile_step = text.index("python -m compileall -q src tools tests examples")
     pytest_step = text.index("run: python -m pytest")
-    assert apt_step < install_step < compile_step < pytest_step
+    assert apt_step < install_step < ruff_step < compile_step < pytest_step
+
+
+def test_ruff_is_a_python311_release_gate() -> None:
+    data = _pyproject()
+    assert data["tool"]["ruff"]["target-version"] == "py311"
+    assert set(data["tool"]["ruff"]["lint"]["select"]) == {"E9", "F63", "F7", "F82"}
+    assert 'python -m pip install "ruff>=0.12,<1"' in _ci_text()
+
+
+def test_calculation_docstrings_are_actual_module_docstrings() -> None:
+    misplaced: list[str] = []
+    calculations = ROOT / "src" / "ucd" / "calculations"
+    for path in sorted(calculations.glob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        string_statements = [
+            node for node in tree.body
+            if isinstance(node, ast.Expr)
+            and isinstance(node.value, ast.Constant)
+            and isinstance(node.value.value, str)
+        ]
+        if string_statements and ast.get_docstring(tree) is None:
+            misplaced.append(f"{path.name}:{string_statements[0].lineno}")
+    assert not misplaced, f"Modül başında olmayan docstring'ler: {misplaced}"
 
 
 def test_pyside6_importorskip_calls_declare_exc_type() -> None:

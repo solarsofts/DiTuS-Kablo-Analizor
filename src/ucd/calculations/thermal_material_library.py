@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Built-in reference thermal-material catalogue for cable-channel design.
 
 The catalogue is intentionally conservative.  Literature rock values are kept
@@ -8,6 +6,8 @@ moisture and compaction can change the effective thermal resistivity greatly.
 Project design values should therefore be replaced by IEEE 442 / ASTM D5334
 measurements whenever the material controls cable rating.
 """
+
+from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import dataclass

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """v0.16.8 validation and shadow-comparison coordinator.
 
 The module is additive and read-only.  It compares the locked production
@@ -8,6 +6,8 @@ checks numerical invariants and records the evidence still required before a
 future PHYSICAL_PRIMARY promotion.  It never writes project inputs, lambda1,
 engine-run records or schema fields.
 """
+
+from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import asdict, dataclass, field

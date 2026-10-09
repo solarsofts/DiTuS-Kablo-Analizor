@@ -366,6 +366,8 @@ class ThermalCrossSectionTemplate:
     surface_boundary_type: str = "FIXED_TEMPERATURE"  # FIXED_TEMPERATURE / CONVECTIVE
     surface_temperature_c: float = 0.0
     deep_soil_temperature_c: float = 0.0
+    surface_temperature_uses_ambient: bool = True
+    deep_soil_temperature_uses_ambient: bool = True
     surface_heat_transfer_w_m2k: float = 12.0
     cable_effective_conductivity_w_mk: float = 12.0
     groundwater_conductivity_multiplier: float = 1.25

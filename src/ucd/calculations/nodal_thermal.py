@@ -619,6 +619,26 @@ class _NodalModel:
         self.matrix, self.boundary_rhs = self._assemble_matrix()
         self._factor = factorized(self.matrix)
 
+    def _boundary_temperatures(self) -> tuple[float, float]:
+        """Resolve explicit boundary values without treating 0 °C as a sentinel."""
+
+        ambient = float(self.profile.ambient_temperature_c)
+
+        def resolve(value_key: str, ambient_key: str, label: str) -> float:
+            if bool(self.values.get(ambient_key, True)):
+                return ambient
+            value = self.values.get(value_key)
+            if value is None or value == "":
+                raise NodalThermalInputError(
+                    f"{label} için ortam sıcaklığı kullanılmıyorsa açık bir sıcaklık girilmelidir."
+                )
+            return float(value)
+
+        return (
+            resolve("surface_temperature_c", "surface_temperature_uses_ambient", "Yüzey sıcaklığı"),
+            resolve("deep_soil_temperature_c", "deep_soil_temperature_uses_ambient", "Derin zemin sıcaklığı"),
+        )
+
     def _get_material(self, material_id: str, label: str) -> ThermalMaterialData:
         material = self.materials.get(material_id)
         if material is None:
@@ -852,12 +872,7 @@ class _NodalModel:
         data: list[float] = []
         rhs = np.zeros(self.cell_count, dtype=float)
         surface_type = str(self.values.get("surface_boundary_type", "FIXED_TEMPERATURE")).upper()
-        surface_temp = float(self.values.get("surface_temperature_c", self.profile.ambient_temperature_c))
-        if abs(surface_temp) < 1e-12:
-            surface_temp = self.profile.ambient_temperature_c
-        deep_temp = float(self.values.get("deep_soil_temperature_c", self.profile.ambient_temperature_c))
-        if abs(deep_temp) < 1e-12:
-            deep_temp = self.profile.ambient_temperature_c
+        surface_temp, deep_temp = self._boundary_temperatures()
         h_surface = _positive(
             "Yüzey ısı geçiş katsayısı",
             self.values.get("surface_heat_transfer_w_m2k", 12.0),
@@ -1062,12 +1077,7 @@ class _NodalModel:
 
     def _boundary_heat(self, field: np.ndarray) -> float:
         surface_type = str(self.values.get("surface_boundary_type", "FIXED_TEMPERATURE")).upper()
-        surface_temp = float(self.values.get("surface_temperature_c", self.profile.ambient_temperature_c))
-        if abs(surface_temp) < 1e-12:
-            surface_temp = self.profile.ambient_temperature_c
-        deep_temp = float(self.values.get("deep_soil_temperature_c", self.profile.ambient_temperature_c))
-        if abs(deep_temp) < 1e-12:
-            deep_temp = self.profile.ambient_temperature_c
+        surface_temp, deep_temp = self._boundary_temperatures()
         h_surface = float(self.values.get("surface_heat_transfer_w_m2k", 12.0))
         total = 0.0
         for iy in range(self.ny):

@@ -11,6 +11,7 @@ from ucd.calculations.thermal_resistance import (
 from ucd.models.project import (
     EXTERNAL_THERMAL_AUTO,
     EXTERNAL_THERMAL_MANUAL,
+    EXTERNAL_THERMAL_MIXED,
     INTERNAL_THERMAL_AUTO,
     INTERNAL_THERMAL_MANUAL,
     CableData,
@@ -110,3 +111,60 @@ def test_touching_trefoil_cables_are_valid_not_overlap() -> None:
     for i, first in enumerate(result.positions_m):
         for second in result.positions_m[i + 1:]:
             assert math.isclose(math.hypot(first[0] - second[0], first[1] - second[1]), 0.105, abs_tol=1e-12)
+
+
+def test_mixed_zone_with_poorer_backfill_requires_nodal_solution() -> None:
+    cable = CableData(arrangement="Trefoil", overall_diameter_mm=100.0)
+    section = RouteSection(
+        "Poor backfill",
+        1.0,
+        section_type="DIRECT_BURIED",
+        burial_depth_m=1.0,
+        soil_thermal_resistivity_km_w=1.0,
+        external_thermal_mode=EXTERNAL_THERMAL_MIXED,
+        phase_spacing_m=0.1,
+        backfill_thermal_resistivity_km_w=1.5,
+        backfill_effective_radius_m=0.3,
+    )
+    try:
+        resolve_external_thermal_resistance(cable, section)
+    except ThermalInputError as exc:
+        assert "MIXED_ZONE_POOR_BACKFILL_REQUIRES_NODAL" in str(exc)
+    else:
+        raise AssertionError("Poor-backfill mixed-zone model must fail closed")
+
+
+def test_mixed_zone_negative_diagonal_is_rejected_instead_of_clamped() -> None:
+    cable = CableData(arrangement="Single", overall_diameter_mm=100.0)
+    section = RouteSection(
+        "Over-correction",
+        1.0,
+        section_type="DIRECT_BURIED",
+        burial_depth_m=0.2,
+        soil_thermal_resistivity_km_w=5.0,
+        external_thermal_mode=EXTERNAL_THERMAL_MIXED,
+        phase_spacing_m=0.1,
+        backfill_thermal_resistivity_km_w=0.01,
+        backfill_effective_radius_m=20.0,
+    )
+    try:
+        resolve_external_thermal_resistance(cable, section)
+    except ThermalInputError as exc:
+        assert "MIXED_ZONE_NEGATIVE_RESISTANCE" in str(exc)
+    else:
+        raise AssertionError("Negative corrected resistance must not be silently clamped")
+
+
+def test_beton_hendek_is_not_misclassified_as_direct_buried() -> None:
+    section = RouteSection(
+        "Concrete trench",
+        1.0,
+        section_type="Beton hendek",
+        external_thermal_mode=EXTERNAL_THERMAL_AUTO,
+    )
+    try:
+        resolve_external_thermal_resistance(CableData(), section)
+    except ThermalInputError as exc:
+        assert "ANALYTIC_MODEL_SCOPE_REQUIRES_NODAL" in str(exc)
+    else:
+        raise AssertionError("Concrete trench must require nodal or manual T4")

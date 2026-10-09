@@ -1,7 +1,3 @@
-from __future__ import annotations
-
-from ucd.calculations.model_applicability import require_production_physics
-
 """Real-x/y multi-cable electro-thermal shadow bridge.
 
 v0.16.6 transfers the route-wide N-core/N-sheath solution into the explicit
@@ -16,6 +12,10 @@ views for every linked thermal region:
 The module is SHADOW_COMPARE only.  It does not replace locked IEC 60287 or
 nodal production results, write project lambda1, or mutate the project model.
 """
+
+from __future__ import annotations
+
+from ucd.calculations.model_applicability import require_production_physics
 
 from dataclasses import dataclass, replace
 from math import hypot, log, pi

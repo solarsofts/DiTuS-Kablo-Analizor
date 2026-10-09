@@ -34,6 +34,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ucd import __version__
 from ucd.cad import read_dxf_geometry
 from ucd.calculations.installation_coupling import (
     PRODUCTION_GEOMETRY_ENGINE_IDS,
@@ -130,6 +131,7 @@ from ucd.calculations.thermal_method_validation import (
     cache_thermal_method_authority,
     evaluate_thermal_method_authority,
 )
+from ucd.calculations.thermal_route import resolve_thermal_region
 
 from ucd.models.project import (
     BONDING_CROSS,
@@ -208,7 +210,7 @@ from ucd.ui.workflow_widgets import (
     INPUT_READINESS_TR, RUN_STATUS_TR, FRESHNESS_TR, MATURITY_TR, status_text,
 )
 
-APP_VERSION = "0.16.9.4.38"
+APP_VERSION = __version__
 
 
 class MainWindow(QMainWindow):
@@ -1638,6 +1640,21 @@ class MainWindow(QMainWindow):
         values = dict(vars(template)) if template is not None else {}
         if region is not None:
             values.update(dict(region.overrides or {}))
+        ambient_temperature_c = 25.0
+        if region is not None:
+            ambient_temperature_c = resolve_thermal_region(
+                self.project.thermal_design, region, self.project.cable
+            ).ambient_temperature_c
+        surface_temperature_c = (
+            ambient_temperature_c
+            if bool(values.get("surface_temperature_uses_ambient", True))
+            else float(values.get("surface_temperature_c", ambient_temperature_c))
+        )
+        deep_soil_temperature_c = (
+            ambient_temperature_c
+            if bool(values.get("deep_soil_temperature_uses_ambient", True))
+            else float(values.get("deep_soil_temperature_c", ambient_temperature_c))
+        )
         linked_section = cross_section_for_region(self.project, region_id)
         if linked_section is not None:
             geometry = linked_section.channel_geometry
@@ -1677,8 +1694,8 @@ class MainWindow(QMainWindow):
                 ),
                 "groundwater_depth_m": values.get("groundwater_depth_m", 99.0),
                 "surface_boundary_type": values.get("surface_boundary_type", ""),
-                "surface_temperature_c": values.get("surface_temperature_c", 0.0),
-                "deep_soil_temperature_c": values.get("deep_soil_temperature_c", 0.0),
+                "surface_temperature_c": surface_temperature_c,
+                "deep_soil_temperature_c": deep_soil_temperature_c,
                 "material_names": material_names,
             }
         if region is None:
@@ -1695,8 +1712,8 @@ class MainWindow(QMainWindow):
             "trench_depth_m": values.get("trench_depth_m", 0.0),
             "groundwater_depth_m": values.get("groundwater_depth_m", 99.0),
             "surface_boundary_type": values.get("surface_boundary_type", ""),
-            "surface_temperature_c": values.get("surface_temperature_c", 0.0),
-            "deep_soil_temperature_c": values.get("deep_soil_temperature_c", 0.0),
+            "surface_temperature_c": surface_temperature_c,
+            "deep_soil_temperature_c": deep_soil_temperature_c,
             "material_names": material_names,
         }
 
@@ -2283,11 +2300,12 @@ class MainWindow(QMainWindow):
         self.thermal_material_table.horizontalHeader().setStretchLastSection(True)
         self.thermal_material_table.itemChanged.connect(self._thermal_material_table_changed)
 
-        self.nodal_settings_table = QTableWidget(0, 22)
+        self.nodal_settings_table = QTableWidget(0, 24)
         self.nodal_settings_table.setHorizontalHeaderLabels([
             "Şablon ID", "Etkin", "Alan yarı genişlik", "Alan derinlik", "Temel adım",
             "İnce adım", "İnce yarıçap", "Maks. hücre", "Yüzey sınırı", "Yüzey T",
-            "Derin zemin T", "h yüzey", "Kablo k", "Yeraltı suyu k çarpanı",
+            "Yüzeyde ortamı kullan", "Derin zemin T", "Derinde ortamı kullan",
+            "h yüzey", "Kablo k", "Yeraltı suyu k çarpanı",
             "Duct iç çap", "Duct dış çap", "Bank genişlik", "Bank yükseklik", "Paralel kablo aralığı",
             "Duct ρth override", "Duct içi ρth override", "Grout ρth override"
         ])
@@ -2387,7 +2405,10 @@ class MainWindow(QMainWindow):
                 f"{template.nodal_base_step_m:g}", f"{template.nodal_refined_step_m:g}",
                 f"{template.nodal_refinement_radius_m:g}", str(template.nodal_max_cells),
                 template.surface_boundary_type, f"{template.surface_temperature_c:g}",
-                f"{template.deep_soil_temperature_c:g}", f"{template.surface_heat_transfer_w_m2k:g}",
+                self._bool_text(template.surface_temperature_uses_ambient),
+                f"{template.deep_soil_temperature_c:g}",
+                self._bool_text(template.deep_soil_temperature_uses_ambient),
+                f"{template.surface_heat_transfer_w_m2k:g}",
                 f"{template.cable_effective_conductivity_w_mk:g}",
                 f"{template.groundwater_conductivity_multiplier:g}",
                 f"{template.duct_inner_diameter_m:g}", f"{template.duct_outer_diameter_m:g}",
@@ -2477,20 +2498,24 @@ class MainWindow(QMainWindow):
         if row >= len(self.project.thermal_design.templates) or col == 0:
             return
         template = self.project.thermal_design.templates[row]
-        bool_map = {1: "nodal_enabled"}
+        bool_map = {
+            1: "nodal_enabled",
+            10: "surface_temperature_uses_ambient",
+            12: "deep_soil_temperature_uses_ambient",
+        }
         text_map = {8: "surface_boundary_type"}
         number_map = {
             2: "nodal_domain_half_width_m", 3: "nodal_domain_depth_m",
             4: "nodal_base_step_m", 5: "nodal_refined_step_m",
             6: "nodal_refinement_radius_m", 7: "nodal_max_cells",
-            9: "surface_temperature_c", 10: "deep_soil_temperature_c",
-            11: "surface_heat_transfer_w_m2k", 12: "cable_effective_conductivity_w_mk",
-            13: "groundwater_conductivity_multiplier", 14: "duct_inner_diameter_m",
-            15: "duct_outer_diameter_m", 16: "duct_bank_width_m",
-            17: "duct_bank_height_m", 18: "parallel_cable_spacing_m",
-            19: "duct_thermal_resistivity_km_w",
-            20: "duct_fill_thermal_resistivity_km_w",
-            21: "grout_thermal_resistivity_km_w",
+            9: "surface_temperature_c", 11: "deep_soil_temperature_c",
+            13: "surface_heat_transfer_w_m2k", 14: "cable_effective_conductivity_w_mk",
+            15: "groundwater_conductivity_multiplier", 16: "duct_inner_diameter_m",
+            17: "duct_outer_diameter_m", 18: "duct_bank_width_m",
+            19: "duct_bank_height_m", 20: "parallel_cable_spacing_m",
+            21: "duct_thermal_resistivity_km_w",
+            22: "duct_fill_thermal_resistivity_km_w",
+            23: "grout_thermal_resistivity_km_w",
         }
         try:
             if col in bool_map:

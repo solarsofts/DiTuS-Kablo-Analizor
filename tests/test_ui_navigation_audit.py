@@ -208,7 +208,8 @@ def test_installation_screen_uses_kablo_kanal_name_and_turkish_type_caption() ->
     installation = (ROOT / "src/ucd/ui/installation_designer_dialog.py").read_text(encoding="utf-8")
     route_dialog = (ROOT / "src/ucd/ui/route_section_dialog.py").read_text(encoding="utf-8")
     assert '"Kablo-Kanal Düzeni…"' in main_source
-    assert 'DiTuS — Kablo-Kanal Düzeni v0.16.9.4.38' in installation
+    assert "from ucd import __version__" in installation
+    assert 'f"DiTuS — Kablo-Kanal Düzeni v{__version__}"' in installation
     assert '"doğrudan gömülü"' in installation
     assert 'font-style:italic' in installation
     assert '"doğrudan gömülü"' in route_dialog

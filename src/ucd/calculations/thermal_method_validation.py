@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """FAZ 4.2 analytic/nodal method-authority policy.
 
 The module never chooses the numerically more convenient result.  It classifies
@@ -8,6 +6,8 @@ and quality-qualified, or whether the two methods require engineering review.
 The result is runtime evidence and is cached in the existing engine-run
 registry; the persisted project schema is unchanged.
 """
+
+from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from datetime import datetime

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """IEC 60287 sheath-loss completeness gate and λ1'' eddy-current term.
 
 The global primitive network supplies longitudinal metallic sheath I²R loss.
@@ -9,6 +7,8 @@ geometries, or requires a traceable external value.  It is intentionally kept
 separate from the network solver: the two components represent different
 physical models and must retain distinct provenance.
 """
+
+from __future__ import annotations
 
 from dataclasses import dataclass
 from math import hypot, log, pi, sqrt

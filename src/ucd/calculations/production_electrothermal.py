@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Production scenario × physical-cable electro-thermal coordinator.
 
 This module promotes the existing independently validated global N-core/N-
@@ -7,6 +5,8 @@ sheath and real-x/y thermal kernels into a read-only production operating-point
 workflow.  It does not mutate project λ1; λ1 is derived from physical loss
 components and is not defined for zero conductor loss.
 """
+
+from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from typing import Iterable

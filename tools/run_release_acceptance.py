@@ -66,9 +66,13 @@ def verify_engine_lock(root: Path, baseline_path: Path) -> dict[str, Any]:
     missing = sorted(set(expected) - current_paths)
     unexpected = sorted(current_paths - set(expected))
     status = "PASS" if not mismatches and not missing and not unexpected else "FAIL"
+    try:
+        baseline_label = baseline_path.relative_to(root).as_posix()
+    except ValueError:
+        baseline_label = str(baseline_path)
     return {
         "status": status,
-        "baseline_file": baseline_path.relative_to(root).as_posix(),
+        "baseline_file": baseline_label,
         "baseline_file_sha256": _sha256(baseline_path),
         "expected_file_count": len(expected),
         "verified_file_count": len(current_paths),
@@ -547,6 +551,9 @@ def build_and_verify_manifest(root: Path, manifest_path: Path, exclusions: set[s
 def audit_procurement_drum_plan(root: Path) -> dict[str, Any]:
     """Independently validate the packaged synthetic procurement plan."""
     try:
+        source_root = str((root / "src").resolve())
+        if source_root not in sys.path:
+            sys.path.insert(0, source_root)
         from ucd.models.project import ProjectData
         from ucd.calculations.procurement import build_procurement_package
         source = root / "examples/synthetic_20km_procurement.ucd.json"

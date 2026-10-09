@@ -17,8 +17,9 @@ def _method_block(source: str, name: str, next_name: str) -> str:
 
 def test_application_version_is_guided_first_design_release() -> None:
     source = _source()
-    assert 'APP_VERSION = "0.16.9.4.38"' in source
-    assert (ROOT / "VERSION.txt").read_text(encoding="utf-8").strip() == "0.16.9.4.38"
+    assert "from ucd import __version__" in source
+    assert "APP_VERSION = __version__" in source
+    assert (ROOT / "VERSION.txt").read_text(encoding="utf-8").strip() == "0.16.9.4.39"
 
 
 def test_application_signature_is_visible_in_status_and_about() -> None:

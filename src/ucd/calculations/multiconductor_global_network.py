@@ -1,7 +1,3 @@
-from __future__ import annotations
-
-from ucd.calculations.model_applicability import require_production_physics
-
 """Global N-core / N-sheath route-network shadow solver.
 
 v0.16.5.2 adds one global core-current vector to the explicit sheath/link-box
@@ -13,6 +9,10 @@ This module is additive and SHADOW_COMPARE only.  It does not write project
 lambda1, replace the locked production primitive-CIM path, or feed IEC/thermal
 results.
 """
+
+from __future__ import annotations
+
+from ucd.calculations.model_applicability import require_production_physics
 
 import cmath
 from dataclasses import dataclass

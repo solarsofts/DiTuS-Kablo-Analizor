@@ -48,6 +48,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ucd import __version__
+
 from ucd.calculations.installation import (
     InstallationInputError,
     channel_geometry_bounds,
@@ -1724,7 +1726,7 @@ class InstallationDesignerDialog(QDialog):
         self._installation_type_regeneration_pending = False
         self._settings = QSettings("DiTuS", "KabloAnalizor")
         self._layer_colors = self._load_layer_colors()
-        self.setWindowTitle("DiTuS — Kablo-Kanal Düzeni v0.16.9.4.38")
+        self.setWindowTitle(f"DiTuS — Kablo-Kanal Düzeni v{__version__}")
         self.setWindowFlags(self.windowFlags() | Qt.WindowMinMaxButtonsHint)
         fit_window(self, DENSITY_FULL)
         self._build_ui()

@@ -1,11 +1,3 @@
-from __future__ import annotations
-
-from ucd.calculations.phase_geometry import PhaseGeometryError, normalize_arrangement, normalize_phase_order, phase_slot_offsets_m
-from ucd.calculations.cable_physical_parameters import (
-    PhysicalParameterInputError,
-    material_resistivity_20_ohm_m,
-)
-
 """Primitive power-frequency sheath-bonding network solver.
 
 The model is deliberately explicit:
@@ -27,6 +19,14 @@ approximation.  This is a working power-frequency engineering model and a
 large step beyond the v0.7 loop-equivalent matrix, but it is not yet the full
 Pollaczek/Wedepohl-Wilcox wideband implementation or an EMT model.
 """
+
+from __future__ import annotations
+
+from ucd.calculations.phase_geometry import PhaseGeometryError, normalize_arrangement, normalize_phase_order, phase_slot_offsets_m
+from ucd.calculations.cable_physical_parameters import (
+    PhysicalParameterInputError,
+    material_resistivity_20_ohm_m,
+)
 
 import cmath
 from dataclasses import dataclass

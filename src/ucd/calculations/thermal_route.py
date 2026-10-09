@@ -476,6 +476,18 @@ def validate_thermal_design(
                 "Nodal çözümü seçin veya kaynaklandırılmış pozitif manuel T4 girin.",
                 region.region_id, start, end,
             ))
+        if (
+            profile.external_thermal_mode == EXTERNAL_THERMAL_MIXED
+            and profile.cable_cover.thermal_resistivity_km_w
+            > profile.native_soil.thermal_resistivity_km_w
+        ):
+            issues.append(ThermalValidationIssue(
+                "ERROR", "MIXED_ZONE_POOR_BACKFILL_REQUIRES_NODAL",
+                "MIXED_ZONE_POOR_BACKFILL_REQUIRES_NODAL: Kablo çevresi dolgusunun ısıl "
+                "özdirenci doğal zeminden yüksek. Karşılıklı ısınmayı eksik tahmin etmemek için "
+                "2D nodal çözümü veya kaynaklandırılmış manuel T4 kullanın.",
+                region.region_id, start, end,
+            ))
 
         try:
             normalized_arrangement = normalize_arrangement(profile.arrangement)

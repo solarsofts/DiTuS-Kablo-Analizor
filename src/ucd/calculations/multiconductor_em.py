@@ -1,7 +1,3 @@
-from __future__ import annotations
-
-from ucd.calculations.model_applicability import require_production_physics
-
 """General N-conductor power-frequency electromagnetic shadow solver.
 
 This module is additive.  It consumes the explicit physical installation model
@@ -23,6 +19,10 @@ Cross-bonding link boxes over multiple minor sections remain in the locked
 ``primitive_cim`` network.  Their general N-conductor integration is the next
 v0.16.5 sub-gate; this module must therefore remain ``SHADOW_COMPARE``.
 """
+
+from __future__ import annotations
+
+from ucd.calculations.model_applicability import require_production_physics
 
 import cmath
 from dataclasses import dataclass, field

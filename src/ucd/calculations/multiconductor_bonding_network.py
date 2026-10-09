@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """General N-core / N-sheath bonding-network shadow solver.
 
 This additive v0.16.5.1 gate extends the local arbitrary-x/y multiconductor
@@ -20,6 +18,8 @@ Engineering scope of this gate:
 The local core-current solution is deliberately sectional.  A future gate will
 solve core continuity and sheath topology in one global constrained network.
 """
+
+from __future__ import annotations
 
 import cmath
 from copy import deepcopy

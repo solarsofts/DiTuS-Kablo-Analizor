@@ -234,13 +234,27 @@ def mixed_zone_direct_buried_thermal_matrix_km_w(
         )
     native_rho = _positive("Doğal zemin ısıl özdirenci", native_soil_thermal_resistivity_km_w)
     backfill_rho = _positive("Termal dolgu ısıl özdirenci", backfill_thermal_resistivity_km_w)
+    if backfill_rho > native_rho:
+        raise ThermalInputError(
+            "MIXED_ZONE_POOR_BACKFILL_REQUIRES_NODAL: Termal dolgu ısıl özdirenci doğal "
+            f"zeminden yüksek (dolgu={backfill_rho:.4f}, doğal={native_rho:.4f} K·m/W). "
+            "Kötü dolgunun karşılıklı ısınma etkisi bu analitik ön modelin kapsamı dışındadır; "
+            "2D nodal çözümü veya kaynaklandırılmış manuel T4 kullanın."
+        )
     surface = _positive("Yüzey termal düzeltmesi", surface_correction_km_w, allow_zero=True)
     near_field_delta = (backfill_rho - native_rho) / (2.0 * pi) * log(equivalent_radius / radius_m)
 
     rows: list[tuple[float, ...]] = []
     for i, row in enumerate(native):
         values = list(row)
-        values[i] = max(0.0, values[i] + near_field_delta + surface)
+        corrected_diagonal = values[i] + near_field_delta + surface
+        if corrected_diagonal < 0.0:
+            raise ThermalInputError(
+                "MIXED_ZONE_NEGATIVE_RESISTANCE: Karışık-zemin düzeltmesi negatif öz ısıl "
+                f"direnç üretti (faz={i + 1}, değer={corrected_diagonal:.6f} K·m/W). "
+                "2D nodal çözümü kullanın."
+            )
+        values[i] = corrected_diagonal
         rows.append(tuple(values))
     return tuple(rows)
 
@@ -268,7 +282,14 @@ def resolve_external_thermal_resistance(
     if mode not in {EXTERNAL_THERMAL_AUTO, EXTERNAL_THERMAL_MIXED}:
         raise ThermalInputError(f"Bilinmeyen dış termal mod: {section.external_thermal_mode}")
     installation_type = str(section.section_type or THERMAL_INSTALL_DIRECT_BURIED).strip().upper()
-    if installation_type in {"STANDART HENDEK", "STANDARD TRENCH", "DIRECT BURIED"} or "HENDEK" in installation_type:
+    if installation_type in {
+        "STANDART HENDEK",
+        "STANDARD TRENCH",
+        "DIRECT BURIED",
+        "DIRECT_BURIED",
+        "DOĞRUDAN GÖMÜLÜ",
+        "DOGRUDAN GOMULU",
+    }:
         installation_type = THERMAL_INSTALL_DIRECT_BURIED
     if installation_type != THERMAL_INSTALL_DIRECT_BURIED:
         raise ThermalInputError(

@@ -1,7 +1,3 @@
-from __future__ import annotations
-
-from ucd.calculations.model_applicability import require_production_physics
-
 """Power-frequency fault, EPR and SVL-TOV study on the primitive CIM/NV network.
 
 The solver intentionally reuses the exact same physical sheath/GCC/grounding
@@ -12,6 +8,10 @@ is normally disabled for the short-duration fault duty.
 This is a power-frequency network study.  It is not an EMT travelling-wave,
 arc, nonlinear MOV or frequency-dependent Pollaczek/Wedepohl-Wilcox model.
 """
+
+from __future__ import annotations
+
+from ucd.calculations.model_applicability import require_production_physics
 
 import cmath
 from dataclasses import dataclass

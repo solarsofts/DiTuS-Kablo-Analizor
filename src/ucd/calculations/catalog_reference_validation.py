@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """FAZ 6.8 catalog reference-rating normalization and physical-model comparison.
 
 No IEC correction-factor table values are embedded here.  A catalog current
@@ -10,6 +8,8 @@ catalog reference condition or an explicit, traceable factor is supplied in
 This keeps licensed/national/manufacturer table data outside the open package
 while making provenance and incompleteness machine-readable.
 """
+
+from __future__ import annotations
 
 from dataclasses import dataclass
 from math import isclose

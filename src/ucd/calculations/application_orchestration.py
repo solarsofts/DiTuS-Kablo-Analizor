@@ -1,11 +1,11 @@
-from __future__ import annotations
-
 """Headless application-level orchestration for calculation workflows.
 
 FAZ 7.2/7.3: calculation sequencing that used to live only in ``MainWindow``
 is kept here so UI, regression tests and future CLI/CI entry points execute the
 same production workflow.  This module deliberately imports no Qt classes.
 """
+
+from __future__ import annotations
 
 from dataclasses import dataclass
 

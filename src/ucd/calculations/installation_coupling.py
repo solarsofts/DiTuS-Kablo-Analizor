@@ -1,11 +1,11 @@
-from __future__ import annotations
-
 """Single-source production coupling for installation geometry.
 
 FAZ 4 makes the accepted physical cross-section the geometry authority.  The
 legacy scalar fields remain deterministic caches/fallbacks for old projects;
 engines that accept coordinates receive the same phase-labelled x-y snapshot.
 """
+
+from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import dataclass, replace

@@ -3,11 +3,12 @@ from __future__ import annotations
 from copy import deepcopy
 
 from ucd.calculations.nodal_thermal import (
+    _NodalModel,
     check_mesh_convergence,
     solve_nodal_region,
     solve_nodal_route,
 )
-from ucd.calculations.thermal_route import solve_thermal_route
+from ucd.calculations.thermal_route import resolve_thermal_region, solve_thermal_route
 from ucd.models.project import ProjectData
 
 
@@ -160,3 +161,27 @@ def test_v011_migration_adds_nodal_defaults_and_missing_duct_materials() -> None
     assert {"MAT-DUCT-01", "MAT-AIR-01"} <= ids
     assert loaded.thermal_design.templates[0].nodal_enabled
     assert loaded.thermal_design.templates[0].nodal_base_step_m > 0
+
+
+def test_zero_degree_boundary_temperatures_are_preserved_when_explicit() -> None:
+    project = ProjectData()
+    template = project.thermal_design.templates[0]
+    template.surface_temperature_c = 0.0
+    template.deep_soil_temperature_c = 0.0
+    template.surface_temperature_uses_ambient = False
+    template.deep_soil_temperature_uses_ambient = False
+    region = project.thermal_design.regions[0]
+    profile = resolve_thermal_region(project.thermal_design, region, project.cable)
+    model = _NodalModel(project, region, profile, 1, mesh_scale=2.0)
+    assert model._boundary_temperatures() == (0.0, 0.0)
+
+
+def test_boundary_temperature_ambient_choice_is_explicit() -> None:
+    project = ProjectData()
+    region = project.thermal_design.regions[0]
+    profile = resolve_thermal_region(project.thermal_design, region, project.cable)
+    model = _NodalModel(project, region, profile, 1, mesh_scale=2.0)
+    assert model._boundary_temperatures() == (
+        profile.ambient_temperature_c,
+        profile.ambient_temperature_c,
+    )
