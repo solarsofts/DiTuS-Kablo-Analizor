@@ -15,7 +15,7 @@ Bu sürüm, v0.16.9.4.38 üzerinde yapılan ayrıntılı kod denetiminin yayın 
 - Ağır GUI hesapları arka plan görevi altyapısına taşındı; Kablo-Kanal tuvali çökme korumaları eklendi.
 - Ruff Python 3.11 kritik statik kontrolü, byte-compile ve Qt offscreen testleri zorunlu CI kapıları oldu.
 - Hesap modüllerindeki 21 yanlış yerleştirilmiş modül docstring'i düzeltildi.
-- Motor SHA-256 kilidi yeniden üretilebilir bir araçla 54 dosya için güncellendi.
+- Motor SHA-256 kilidi yeniden üretilebilir bir araçla 54 dosya için güncellendi; LF/CRLF farklarından bağımsız olarak Linux ve Windows'ta aynı sonucu veriyor.
 
 ## Uyumluluk ve kapsam
 

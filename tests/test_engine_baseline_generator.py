@@ -24,3 +24,15 @@ def test_engine_baseline_generator_is_deterministic_and_verifiable(tmp_path: Pat
     result = verify_engine_lock(ROOT, output)
     assert result["status"] == "PASS"
     assert result["verified_file_count"] == 54
+
+
+def test_engine_baseline_is_independent_of_checkout_line_endings(tmp_path: Path) -> None:
+    engine_file = tmp_path / "src/ucd/calculations/example.py"
+    engine_file.parent.mkdir(parents=True)
+    engine_file.write_bytes(b"value = 1\nother = 2\n")
+    lf_baseline = render_engine_baseline(tmp_path)
+
+    engine_file.write_bytes(b"value = 1\r\nother = 2\r\n")
+    crlf_baseline = render_engine_baseline(tmp_path)
+
+    assert crlf_baseline == lf_baseline

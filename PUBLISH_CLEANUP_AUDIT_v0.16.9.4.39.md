@@ -4,10 +4,10 @@
 
 | Kapı | Sonuç | Kanıt |
 |---|---:|---|
-| Pytest | PASS | 723/724 PASS, 1 skipped |
+| Pytest | PASS | 724/725 PASS, 1 skipped |
 | Yayın veri bütünlüğü | PASS | 0 blocker, 5 konuma bağlı izin |
 | Hesap/model motor kilidi | PASS | 54/54 dosya byte doğrulandı |
-| Manifest | PASS | 479/479 |
+| Manifest | PASS | 484/484 |
 | Makara planı sayısal denetimi | PASS | 126 makara, aşım 0.000 m, atanmamış 0 |
 | Bonding aksesuar planı | VALID | Cross LB 28, grounding LB 12, SVL set/pol 28/84 |
 | Kabul belgeleri öz-denetimi | PASS | JSON/TXT/MD yeniden tarandı |

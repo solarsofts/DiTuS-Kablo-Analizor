@@ -9,7 +9,7 @@
   },
   "engine_lock": {
     "baseline_file": "ENGINE_BASELINE_v0.16.9.4.39.sha256",
-    "baseline_file_sha256": "a91ceabf73065291fe185ad3d6cb7f4de1bc081d3ed5af0c28fd3316080ca032",
+    "baseline_file_sha256": "dbe204110a162a12a74001bdd672c10f7d49a3db9df73da901f0bd8596bf6bc7",
     "expected_file_count": 54,
     "mismatches": [],
     "missing_paths": [],
@@ -26,17 +26,17 @@
     ]
   },
   "manifest": {
-    "entry_count": 479,
+    "entry_count": 484,
     "excluded_generated_attestations": [
       "PACKAGED_TEST_RESULTS_v0.16.9.4.39.txt",
       "PUBLISH_CLEANUP_AUDIT_v0.16.9.4.39.md",
       "PUBLISH_INTEGRITY_AUDIT_v0.16.9.4.39.json"
     ],
     "manifest_file": "MANIFEST.txt",
-    "manifest_sha256": "aebe015d1c373c6a73d7d3dfbecee21c04f7b1b1ee59607706dfd830e0249a8f",
+    "manifest_sha256": "ea6995b88ad71151252415d3b10f624cf7f3abd7446bedce4b3c001107915277",
     "mismatches": [],
     "status": "PASS",
-    "verified_count": 479
+    "verified_count": 484
   },
   "overall_status": "PASS",
   "package_version": "0.16.9.4.39",
@@ -135,8 +135,8 @@
     "schema_version": "1.0",
     "stats": {
       "archive_members_scanned": 51,
-      "filenames_scanned": 479,
-      "files_seen": 479,
+      "filenames_scanned": 484,
+      "files_seen": 484,
       "json_identity_fields_scanned": 12,
       "ooxml_files_scanned": 3,
       "pdf_annotations_scanned": 0,
@@ -148,20 +148,20 @@
       "pdf_pages_scanned": 19,
       "pdf_pages_seen": 19,
       "pdf_text_characters_scanned": 43796,
-      "text_characters_scanned": 8249422,
-      "text_files_scanned": 447,
+      "text_characters_scanned": 8257804,
+      "text_files_scanned": 451,
       "unscannable_objects": 0,
-      "unsupported_binary_files": 27
+      "unsupported_binary_files": 28
     },
     "status": "PASS"
   },
   "pytest": {
-    "elapsed_seconds": 536.045,
+    "elapsed_seconds": 526.345,
     "errors": 0,
     "exit_code": 0,
     "failed_cases": [],
     "failures": 0,
-    "passed": 723,
+    "passed": 724,
     "process_isolated_shards": true,
     "shard_count": 8,
     "shards": [
@@ -338,7 +338,7 @@
         "tests": 96
       },
       {
-        "elapsed_seconds": 36.561,
+        "elapsed_seconds": 27.502,
         "errors": 0,
         "exit_code": 0,
         "failed_cases": [],
@@ -360,7 +360,7 @@
         "process_isolated_files": true,
         "runs": [
           {
-            "elapsed_seconds": 6.89,
+            "elapsed_seconds": 4.563,
             "errors": 0,
             "exit_code": 0,
             "failed_cases": [],
@@ -373,7 +373,7 @@
             "tests": 14
           },
           {
-            "elapsed_seconds": 2.266,
+            "elapsed_seconds": 2.328,
             "errors": 0,
             "exit_code": 0,
             "failed_cases": [],
@@ -386,7 +386,7 @@
             "tests": 16
           },
           {
-            "elapsed_seconds": 2.328,
+            "elapsed_seconds": 2.094,
             "errors": 0,
             "exit_code": 0,
             "failed_cases": [],
@@ -399,7 +399,7 @@
             "tests": 10
           },
           {
-            "elapsed_seconds": 1.843,
+            "elapsed_seconds": 1.672,
             "errors": 0,
             "exit_code": 0,
             "failed_cases": [],
@@ -412,7 +412,7 @@
             "tests": 9
           },
           {
-            "elapsed_seconds": 0.922,
+            "elapsed_seconds": 0.829,
             "errors": 0,
             "exit_code": 0,
             "failed_cases": [],
@@ -425,7 +425,7 @@
             "tests": 4
           },
           {
-            "elapsed_seconds": 1.703,
+            "elapsed_seconds": 1.609,
             "errors": 0,
             "exit_code": 0,
             "failed_cases": [],
@@ -438,7 +438,7 @@
             "tests": 11
           },
           {
-            "elapsed_seconds": 2.906,
+            "elapsed_seconds": 2.61,
             "errors": 0,
             "exit_code": 0,
             "failed_cases": [],
@@ -464,7 +464,7 @@
             "tests": 2
           },
           {
-            "elapsed_seconds": 8.062,
+            "elapsed_seconds": 5.016,
             "errors": 0,
             "exit_code": 0,
             "failed_cases": [],
@@ -477,7 +477,7 @@
             "tests": 12
           },
           {
-            "elapsed_seconds": 7.828,
+            "elapsed_seconds": 4.937,
             "errors": 0,
             "exit_code": 0,
             "failed_cases": [],
@@ -490,7 +490,7 @@
             "tests": 6
           },
           {
-            "elapsed_seconds": 0.844,
+            "elapsed_seconds": 0.875,
             "errors": 0,
             "exit_code": 0,
             "failed_cases": [],
@@ -1474,7 +1474,7 @@
         "tests": 93
       },
       {
-        "elapsed_seconds": 20.157,
+        "elapsed_seconds": 19.516,
         "errors": 0,
         "exit_code": 0,
         "failed_cases": [],
@@ -1491,11 +1491,11 @@
           "tests/test_synthetic_20km_examples.py",
           "tests/test_ui_full_canvas_contract.py"
         ],
-        "passed": 55,
+        "passed": 56,
         "process_isolated_files": true,
         "runs": [
           {
-            "elapsed_seconds": 2.125,
+            "elapsed_seconds": 2.625,
             "errors": 0,
             "exit_code": 0,
             "failed_cases": [],
@@ -1508,7 +1508,7 @@
             "tests": 1
           },
           {
-            "elapsed_seconds": 2.016,
+            "elapsed_seconds": 1.719,
             "errors": 0,
             "exit_code": 0,
             "failed_cases": [],
@@ -1521,20 +1521,20 @@
             "tests": 8
           },
           {
-            "elapsed_seconds": 1.094,
+            "elapsed_seconds": 1.14,
             "errors": 0,
             "exit_code": 0,
             "failed_cases": [],
             "failures": 0,
             "output_tail": "",
-            "passed": 1,
+            "passed": 2,
             "selection": "tests/test_engine_baseline_generator.py",
             "skipped": 0,
             "status": "PASS",
-            "tests": 1
+            "tests": 2
           },
           {
-            "elapsed_seconds": 0.797,
+            "elapsed_seconds": 0.843,
             "errors": 0,
             "exit_code": 0,
             "failed_cases": [],
@@ -1547,7 +1547,7 @@
             "tests": 2
           },
           {
-            "elapsed_seconds": 4.312,
+            "elapsed_seconds": 3.438,
             "errors": 0,
             "exit_code": 0,
             "failed_cases": [],
@@ -1560,7 +1560,7 @@
             "tests": 4
           },
           {
-            "elapsed_seconds": 1.563,
+            "elapsed_seconds": 1.547,
             "errors": 0,
             "exit_code": 0,
             "failed_cases": [],
@@ -1573,7 +1573,7 @@
             "tests": 8
           },
           {
-            "elapsed_seconds": 2.266,
+            "elapsed_seconds": 2.297,
             "errors": 0,
             "exit_code": 0,
             "failed_cases": [],
@@ -1586,7 +1586,7 @@
             "tests": 4
           },
           {
-            "elapsed_seconds": 2.953,
+            "elapsed_seconds": 2.891,
             "errors": 0,
             "exit_code": 0,
             "failed_cases": [],
@@ -1599,7 +1599,7 @@
             "tests": 10
           },
           {
-            "elapsed_seconds": 2.125,
+            "elapsed_seconds": 2.156,
             "errors": 0,
             "exit_code": 0,
             "failed_cases": [],
@@ -1612,7 +1612,7 @@
             "tests": 8
           },
           {
-            "elapsed_seconds": 0.906,
+            "elapsed_seconds": 0.86,
             "errors": 0,
             "exit_code": 0,
             "failed_cases": [],
@@ -1629,7 +1629,7 @@
         "shard_index": 6,
         "skipped": 0,
         "status": "PASS",
-        "tests": 55
+        "tests": 56
       },
       {
         "elapsed_seconds": 77.109,
@@ -1837,7 +1837,7 @@
     ],
     "skipped": 1,
     "status": "PASS",
-    "tests": 724
+    "tests": 725
   },
   "schema_version": "1.0"
 }

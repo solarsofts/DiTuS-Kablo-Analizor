@@ -28,6 +28,13 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _engine_sha256(path: Path) -> str:
+    """Hash engine Python files consistently on LF and CRLF checkouts."""
+
+    normalized = path.read_bytes().replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    return hashlib.sha256(normalized).hexdigest()
+
+
 def _load_engine_baseline(root: Path, baseline_path: Path) -> dict[str, str]:
     baseline: dict[str, str] = {}
     for line_number, raw in enumerate(baseline_path.read_text(encoding="utf-8").splitlines(), start=1):
@@ -53,7 +60,7 @@ def verify_engine_lock(root: Path, baseline_path: Path) -> dict[str, Any]:
         for path in sorted(item for item in folder.rglob("*") if item.is_file() and "__pycache__" not in item.parts):
             relative = path.relative_to(root).as_posix()
             current_paths.add(relative)
-            actual = _sha256(path)
+            actual = _engine_sha256(path)
             expected_digest = expected.get(relative)
             if expected_digest != actual:
                 mismatches.append(

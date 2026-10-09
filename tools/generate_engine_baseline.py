@@ -13,6 +13,13 @@ from typing import Sequence
 ENGINE_FOLDERS = ("src/ucd/calculations", "src/ucd/models")
 
 
+def _engine_sha256(path: Path) -> str:
+    """Hash Python source independently of checkout line-ending policy."""
+
+    normalized = path.read_bytes().replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    return hashlib.sha256(normalized).hexdigest()
+
+
 def _engine_files(root: Path) -> list[Path]:
     files: list[Path] = []
     for relative_folder in ENGINE_FOLDERS:
@@ -28,7 +35,7 @@ def _engine_files(root: Path) -> list[Path]:
 def render_engine_baseline(root: Path) -> str:
     root = root.resolve()
     return "".join(
-        f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.relative_to(root).as_posix()}\n"
+        f"{_engine_sha256(path)}  {path.relative_to(root).as_posix()}\n"
         for path in _engine_files(root)
     )
 
